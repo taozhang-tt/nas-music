@@ -5,6 +5,8 @@
 //  Created by wuchang on 2026/6/17.
 //
 //  组合根：创建 Mock Provider，PlaybackManager 通过 .environmentObject 全局注入。
+//  同时创建 NowPlayingInfoManager / RemoteCommandManager，订阅同一个 PlaybackManager
+//  以驱动锁屏和控制中心的播放信息/远程控制指令。
 //
 
 import SwiftUI
@@ -12,13 +14,20 @@ import SwiftUI
 @main
 struct nas_musicApp: App {
     private let musicRepository: MusicRepository
-    @StateObject private var playbackManager = PlaybackManager()
+    @StateObject private var playbackManager: PlaybackManager
     @StateObject private var downloadManager: DownloadManager
     @StateObject private var nasServerStore: NASServerStore
+    private let nowPlayingInfoManager: NowPlayingInfoManager
+    private let remoteCommandManager: RemoteCommandManager
 
     init() {
         let repository = MockMusicRepository()
         musicRepository = repository
+
+        let playbackManager = PlaybackManager(audioSessionManager: AudioSessionManager())
+        _playbackManager = StateObject(wrappedValue: playbackManager)
+        nowPlayingInfoManager = NowPlayingInfoManager(playbackManager: playbackManager)
+        remoteCommandManager = RemoteCommandManager(playbackManager: playbackManager)
 
         let seedSongs = Array(repository.songs.prefix(4))
         let seedDownloads = seedSongs.enumerated().map { index, song -> DownloadItem in

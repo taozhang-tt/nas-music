@@ -29,10 +29,23 @@
 		};
 		84CD7EC62FE2322A006C9D5B /* nas-music */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A1B2C3D4E5F6A7B8C9D0E1F2 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
 			path = "nas-music";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 84CD7EC32FE2322A006C9D5B /* nas-music */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		2F568690E96A4C02B7ADD481 /* Frameworks */ = {
@@ -349,6 +362,7 @@
 				DEVELOPMENT_TEAM = 996S5NL7SD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "nas-music/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "NAS Music";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -382,6 +396,7 @@
 				DEVELOPMENT_TEAM = 996S5NL7SD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "nas-music/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "NAS Music";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

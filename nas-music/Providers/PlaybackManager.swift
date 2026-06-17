@@ -3,7 +3,8 @@
 //  nas-music
 //
 //  全局共享的播放状态，通过 @EnvironmentObject 注入到所有页面。
-//  没有接入真实 AVPlayer/音频文件，用 Timer 模拟播放进度推进。
+//  没有接入真实 AVPlayer/音频文件，用 Timer 模拟播放进度推进；play()/pause() 会驱动
+//  AudioSessionManager 激活音频会话，让模拟播放在锁屏/后台时也能继续推进。
 //
 
 import Foundation
@@ -18,7 +19,16 @@ final class PlaybackManager: ObservableObject {
     @Published private(set) var isShuffled: Bool = false
     @Published var repeatMode: RepeatMode = .off
 
+    private let audioSessionManager: AudioSessionManager
     private var timerCancellable: AnyCancellable?
+
+    init(audioSessionManager: AudioSessionManager) {
+        self.audioSessionManager = audioSessionManager
+    }
+
+    convenience init() {
+        self.init(audioSessionManager: AudioSessionManager())
+    }
 
     var currentSong: Song? {
         playlist.indices.contains(currentIndex) ? playlist[currentIndex] : nil
@@ -57,11 +67,13 @@ final class PlaybackManager: ObservableObject {
         guard currentSong != nil else { return }
         isPlaying = true
         startTimer()
+        audioSessionManager.resume()
     }
 
     func pause() {
         isPlaying = false
         stopTimer()
+        audioSessionManager.suspend()
     }
 
     func toggle() {
