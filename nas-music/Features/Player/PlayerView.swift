@@ -28,7 +28,7 @@ struct PlayerView: View {
                 Spacer(minLength: 0)
 
                 if let song = playbackManager.currentSong {
-                    AlbumArtView(id: song.id.uuidString, cornerRadius: 16)
+                    AlbumArtView(id: song.id, cornerRadius: 16)
                         .frame(width: 280, height: 280)
                         .shadow(color: .black.opacity(0.5), radius: 20, y: 10)
 
@@ -36,13 +36,21 @@ struct PlayerView: View {
                         Text(song.title)
                             .font(.title2.bold())
                             .foregroundStyle(.white)
-                        Text(song.artist)
+                        Text(song.artist ?? "未知歌手")
                             .font(.body)
                             .foregroundStyle(.white.opacity(0.6))
                     }
                 } else {
                     Text("当前没有播放内容")
                         .foregroundStyle(.white.opacity(0.6))
+                }
+
+                if let playbackError = playbackManager.playbackError {
+                    Text(playbackError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .onTapGesture { playbackManager.dismissPlaybackError() }
                 }
 
                 Spacer(minLength: 0)
@@ -126,11 +134,19 @@ struct PlayerView: View {
             Button {
                 playbackManager.toggle()
             } label: {
-                Image(systemName: playbackManager.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                    .font(.system(size: 64))
-                    .foregroundStyle(.white)
+                if playbackManager.isLoadingStream {
+                    ProgressView()
+                        .tint(.white)
+                        .scaleEffect(1.6)
+                        .frame(width: 64, height: 64)
+                } else {
+                    Image(systemName: playbackManager.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                        .font(.system(size: 64))
+                        .foregroundStyle(.white)
+                }
             }
             .buttonStyle(.plain)
+            .disabled(playbackManager.isLoadingStream)
 
             Button {
                 playbackManager.next()
@@ -174,9 +190,9 @@ struct PlayerView: View {
 }
 
 private func makePreviewPlaybackManager() -> PlaybackManager {
-    let manager = PlaybackManager()
-    let repository = MockMusicRepository()
-    manager.updatePlaylist(repository.songs, currentIndex: 0)
+    let provider = MockMusicLibraryProvider()
+    let manager = PlaybackManager(musicLibraryProvider: provider)
+    manager.updatePlaylist(provider.songs, currentIndex: 0)
     manager.play()
     return manager
 }

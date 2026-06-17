@@ -4,46 +4,54 @@
 //
 //  Created by wuchang on 2026/6/17.
 //
-//  组合根：创建 Mock Provider，PlaybackManager 通过 .environmentObject 全局注入。
-//  同时创建 NowPlayingInfoManager / RemoteCommandManager，订阅同一个 PlaybackManager
-//  以驱动锁屏和控制中心的播放信息/远程控制指令。
+//  组合根：创建 NASSessionManager + MusicLibraryProviderStore（NAS 已连接时自动切换到
+//  SynologyAudioStationProvider，否则用 MockMusicLibraryProvider），PlaybackManager 通过
+//  .environmentObject 全局注入，并订阅 providerStore 切换时同步更新 PlaybackManager 用来
+//  解析 stream URL 的 provider。
 //
 
 import SwiftUI
+import Combine
 
 @main
 struct nas_musicApp: App {
-    private let musicRepository: MusicRepository
     @StateObject private var playbackManager: PlaybackManager
     @StateObject private var downloadManager: DownloadManager
     @StateObject private var nasSessionManager: NASSessionManager
+    @StateObject private var providerStore: MusicLibraryProviderStore
     private let nowPlayingInfoManager: NowPlayingInfoManager
     private let remoteCommandManager: RemoteCommandManager
+    private let providerStoreObserver: AnyCancellable?
 
     init() {
-        let repository = MockMusicRepository()
-        musicRepository = repository
+        let sessionManager = NASSessionManager()
+        _nasSessionManager = StateObject(wrappedValue: sessionManager)
 
-        let playbackManager = PlaybackManager(audioSessionManager: AudioSessionManager())
+        let store = MusicLibraryProviderStore(sessionManager: sessionManager)
+        _providerStore = StateObject(wrappedValue: store)
+
+        let playbackManager = PlaybackManager(audioSessionManager: AudioSessionManager(), musicLibraryProvider: store.activeProvider)
         _playbackManager = StateObject(wrappedValue: playbackManager)
         nowPlayingInfoManager = NowPlayingInfoManager(playbackManager: playbackManager)
         remoteCommandManager = RemoteCommandManager(playbackManager: playbackManager)
+        providerStoreObserver = store.$activeProvider.sink { provider in
+            playbackManager.updateMusicLibraryProvider(provider)
+        }
 
-        let seedSongs = Array(repository.songs.prefix(4))
+        let mockProvider = MockMusicLibraryProvider()
+        let seedSongs = Array(mockProvider.songs.prefix(4))
         let seedDownloads = seedSongs.enumerated().map { index, song -> DownloadItem in
             let status: DownloadStatus = index == 0 ? .completed : (index == 1 ? .failed : .downloading)
             let progress: Double = index == 0 ? 1 : (index == 1 ? 0.4 : 0.15 * Double(index))
-            return DownloadItem(id: "download-\(song.id.uuidString)", song: song, status: status, progress: progress)
+            return DownloadItem(id: "download-\(song.id)", song: song, status: status, progress: progress)
         }
         _downloadManager = StateObject(wrappedValue: DownloadManager(items: seedDownloads))
-
-        _nasSessionManager = StateObject(wrappedValue: NASSessionManager())
     }
 
     var body: some Scene {
         WindowGroup {
             RootTabView(
-                musicRepository: musicRepository,
+                providerStore: providerStore,
                 downloadManager: downloadManager,
                 nasSessionManager: nasSessionManager
             )

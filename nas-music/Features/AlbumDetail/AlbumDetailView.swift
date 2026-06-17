@@ -9,8 +9,8 @@ struct AlbumDetailView: View {
     @StateObject private var viewModel: AlbumDetailViewModel
     @EnvironmentObject private var playbackManager: PlaybackManager
 
-    init(album: Album) {
-        _viewModel = StateObject(wrappedValue: AlbumDetailViewModel(album: album))
+    init(album: Album, provider: MusicLibraryProvider) {
+        _viewModel = StateObject(wrappedValue: AlbumDetailViewModel(album: album, provider: provider))
     }
 
     var body: some View {
@@ -27,19 +27,22 @@ struct AlbumDetailView: View {
                         Text(viewModel.album.artistName)
                             .font(.body)
                             .foregroundStyle(.secondary)
-                        Text("\(viewModel.album.year) · \(viewModel.album.trackCount) 首歌曲 · \(viewModel.formattedDuration)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        if !viewModel.subtitle.isEmpty {
+                            Text(viewModel.subtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     Button {
-                        playbackManager.updatePlaylist(viewModel.album.songs, currentIndex: 0)
+                        playbackManager.updatePlaylist(viewModel.songs, currentIndex: 0)
                         playbackManager.play()
                     } label: {
                         Label("播放全部", systemImage: "play.fill")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(viewModel.songs.isEmpty)
                     .padding(.top, 8)
                 }
                 .frame(maxWidth: .infinity)
@@ -47,23 +50,55 @@ struct AlbumDetailView: View {
                 .listRowSeparator(.hidden)
             }
 
-            Section {
-                ForEach(Array(viewModel.album.songs.enumerated()), id: \.element.id) { index, song in
+            switch viewModel.state {
+            case .idle, .loading:
+                Section {
                     HStack {
-                        Text("\(index + 1)")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 24, alignment: .leading)
-                        Text(song.title)
                         Spacer()
-                        Text(song.duration.formattedAsMinutesSeconds)
+                        ProgressView("加载中…")
+                        Spacer()
+                    }
+                    .listRowSeparator(.hidden)
+                }
+            case .failed(let message):
+                Section {
+                    VStack(spacing: 8) {
+                        Text(message)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        Button("重新加载") { Task { await viewModel.refresh() } }
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        playbackManager.updatePlaylist(viewModel.album.songs, currentIndex: index)
-                        playbackManager.play()
+                    .frame(maxWidth: .infinity)
+                    .listRowSeparator(.hidden)
+                }
+            case .empty:
+                Section {
+                    Text("这张专辑还没有找到曲目。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .listRowSeparator(.hidden)
+                }
+            case .loaded:
+                Section {
+                    ForEach(Array(viewModel.songs.enumerated()), id: \.element.id) { index, song in
+                        HStack {
+                            Text("\(index + 1)")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 24, alignment: .leading)
+                            Text(song.title)
+                            Spacer()
+                            Text((song.duration ?? 0).formattedAsMinutesSeconds)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            playbackManager.updatePlaylist(viewModel.songs, currentIndex: index)
+                            playbackManager.play()
+                        }
                     }
                 }
             }
@@ -71,12 +106,14 @@ struct AlbumDetailView: View {
         .listStyle(.plain)
         .navigationTitle(viewModel.album.title)
         .navigationBarTitleDisplayMode(.inline)
+        .task { await viewModel.load() }
     }
 }
 
 #Preview {
+    let mockProvider = MockMusicLibraryProvider()
     NavigationStack {
-        AlbumDetailView(album: MockMusicRepository().albums[0])
+        AlbumDetailView(album: mockProvider.albums[0], provider: mockProvider)
     }
     .environmentObject(PlaybackManager())
 }

@@ -48,9 +48,9 @@ struct QueueView: View {
 }
 
 private func makePreviewPlaybackManager() -> PlaybackManager {
-    let manager = PlaybackManager()
-    let repository = MockMusicRepository()
-    manager.updatePlaylist(repository.songs, currentIndex: 0)
+    let provider = MockMusicLibraryProvider()
+    let manager = PlaybackManager(musicLibraryProvider: provider)
+    manager.updatePlaylist(provider.songs, currentIndex: 0)
     manager.play()
     return manager
 }

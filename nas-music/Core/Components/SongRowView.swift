@@ -13,7 +13,7 @@ struct SongRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            AlbumArtView(id: song.id.uuidString, cornerRadius: 6)
+            AlbumArtView(id: song.id, cornerRadius: 6)
                 .frame(width: 44, height: 44)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -21,7 +21,7 @@ struct SongRowView: View {
                     .font(.body)
                     .foregroundStyle(isPlaying ? Color.accentColor : .primary)
                     .lineLimit(1)
-                Text(song.artist)
+                Text(song.artist ?? "未知歌手")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -29,7 +29,7 @@ struct SongRowView: View {
 
             Spacer()
 
-            Text(song.duration.formattedAsMinutesSeconds)
+            Text((song.duration ?? 0).formattedAsMinutesSeconds)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

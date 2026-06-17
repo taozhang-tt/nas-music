@@ -1,11 +1,11 @@
 //
-//  Artist.swift
+//  Playlist.swift
 //  nas-music
 //
 
 import Foundation
 
-struct Artist: Identifiable, Equatable, Hashable {
+struct Playlist: Identifiable, Equatable, Hashable {
     let id: String
     let name: String
     let songCount: Int

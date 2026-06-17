@@ -23,6 +23,13 @@ struct SynologyLoginResult {
 struct SynologyAuthService {
     private let client: SynologyAPIClient
     private let preferredVersion = 6
+    /// DSM 按 session 名称隔离 sid——不传这个参数登录得到的 sid 只在通用 DSM session 下有效，
+    /// 调用 Audio Station 的接口会被判定为没有权限（error code 105），即使账号本身有权限。
+    private let sessionName = "AudioStation"
+    /// DSM 7 的登录默认是 format=cookie（给浏览器用，靠 Set-Cookie 维持会话）。第三方 App 走
+    /// 显式 `_sid=` 查询参数鉴权，必须传 format=sid，否则套件级 API（如 Audio Station）一样会
+    /// 拒绝（同样报 error code 105），即使账号、Application Privileges 都配置正确。
+    private let loginFormat = "sid"
 
     init(client: SynologyAPIClient) {
         self.client = client
@@ -65,6 +72,8 @@ struct SynologyAuthService {
                 URLQueryItem(name: "method", value: "login"),
                 URLQueryItem(name: "account", value: username),
                 URLQueryItem(name: "passwd", value: password),
+                URLQueryItem(name: "session", value: sessionName),
+                URLQueryItem(name: "format", value: loginFormat),
                 URLQueryItem(name: "enable_syno_token", value: "yes"),
             ]
         )
@@ -92,6 +101,7 @@ struct SynologyAuthService {
                 URLQueryItem(name: "api", value: "SYNO.API.Auth"),
                 URLQueryItem(name: "version", value: "6"),
                 URLQueryItem(name: "method", value: "logout"),
+                URLQueryItem(name: "session", value: sessionName),
                 URLQueryItem(name: "_sid", value: sid),
             ]
         )

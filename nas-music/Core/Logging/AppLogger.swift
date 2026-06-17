@@ -35,6 +35,25 @@ enum AppLogger {
         #endif
     }
 
+    /// API Discovery 诊断日志：只打印 API 名称/path/版本范围，不涉及任何鉴权信息。
+    static func logDiscoveredAPI(name: String, path: String, minVersion: Int, maxVersion: Int) {
+        #if DEBUG
+        network.debug("discovered api=\(name, privacy: .public) path=\(path, privacy: .public) minVersion=\(minVersion, privacy: .public) maxVersion=\(maxVersion, privacy: .public)")
+        #endif
+    }
+
+    /// Audio Station 业务响应诊断日志：只打印 api 名称/success/群晖 error code/耗时。
+    static func logAudioStationResponse(api: String, success: Bool, errorCode: Int?, elapsed: TimeInterval) {
+        #if DEBUG
+        let elapsedMs = Int(elapsed * 1000)
+        if let errorCode {
+            network.debug("audiostation api=\(api, privacy: .public) success=\(success, privacy: .public) errorCode=\(errorCode, privacy: .public) elapsedMs=\(elapsedMs, privacy: .public)")
+        } else {
+            network.debug("audiostation api=\(api, privacy: .public) success=\(success, privacy: .public) elapsedMs=\(elapsedMs, privacy: .public)")
+        }
+        #endif
+    }
+
     private static func isSensitive(_ key: String) -> Bool {
         sensitiveKeys.contains(key.lowercased())
     }

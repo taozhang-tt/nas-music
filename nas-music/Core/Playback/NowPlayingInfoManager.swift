@@ -15,7 +15,7 @@ import SwiftUI
 final class NowPlayingInfoManager {
     private let playbackManager: PlaybackManager
     private var cancellable: AnyCancellable?
-    private var artworkCache: [UUID: MPMediaItemArtwork] = [:]
+    private var artworkCache: [String: MPMediaItemArtwork] = [:]
 
     init(playbackManager: PlaybackManager) {
         self.playbackManager = playbackManager
@@ -40,7 +40,7 @@ final class NowPlayingInfoManager {
         info[MPMediaItemPropertyTitle] = song.title
         info[MPMediaItemPropertyArtist] = song.artist
         info[MPMediaItemPropertyAlbumTitle] = song.album
-        info[MPMediaItemPropertyPlaybackDuration] = song.duration
+        info[MPMediaItemPropertyPlaybackDuration] = playbackManager.duration
         info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = playbackManager.currentTime
         info[MPNowPlayingInfoPropertyPlaybackRate] = playbackManager.isPlaying ? 1.0 : 0.0
         info[MPMediaItemPropertyArtwork] = artwork(for: song)
@@ -53,7 +53,7 @@ final class NowPlayingInfoManager {
             return cached
         }
 
-        let renderer = ImageRenderer(content: AlbumArtView(id: song.id.uuidString)
+        let renderer = ImageRenderer(content: AlbumArtView(id: song.id)
             .frame(width: 300, height: 300))
         let image = renderer.uiImage ?? UIImage(systemName: "music.note") ?? UIImage()
         let mediaArtwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }

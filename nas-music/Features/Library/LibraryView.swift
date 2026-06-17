@@ -9,8 +9,8 @@ struct LibraryView: View {
     @StateObject private var viewModel: LibraryViewModel
     @EnvironmentObject private var playbackManager: PlaybackManager
 
-    init(musicRepository: MusicRepository) {
-        _viewModel = StateObject(wrappedValue: LibraryViewModel(musicRepository: musicRepository))
+    init(providerStore: MusicLibraryProviderStore) {
+        _viewModel = StateObject(wrappedValue: LibraryViewModel(providerStore: providerStore))
     }
 
     var body: some View {
@@ -23,36 +23,71 @@ struct LibraryView: View {
             .pickerStyle(.segmented)
             .padding()
 
-            List {
-                switch viewModel.selectedSegment {
-                case .songs:
-                    ForEach(Array(viewModel.filteredSongs.enumerated()), id: \.element.id) { index, song in
-                        SongRowView(song: song)
-                            .onTapGesture {
-                                playbackManager.updatePlaylist(viewModel.filteredSongs, currentIndex: index)
-                                playbackManager.play()
-                            }
-                    }
-                case .albums:
-                    ForEach(viewModel.filteredAlbums) { album in
-                        NavigationLink(value: album) {
-                            albumRow(album)
-                        }
-                    }
-                case .artists:
-                    ForEach(viewModel.filteredArtists) { artist in
-                        artistRow(artist)
-                    }
-                }
-            }
-            .listStyle(.plain)
+            content
         }
         .searchable(text: $viewModel.searchText, prompt: "搜索音乐")
         .navigationTitle("音乐库")
         .navigationDestination(for: Album.self) { album in
-            AlbumDetailView(album: album)
+            AlbumDetailView(album: album, provider: viewModel.activeProvider)
         }
         .task { await viewModel.load() }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch viewModel.state {
+        case .idle, .loading:
+            ProgressView("加载中…")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .failed(let message):
+            errorView(message: message)
+        case .empty:
+            ContentUnavailableView("音乐库是空的", systemImage: "music.note.list", description: Text("请确认 NAS 已完成音乐索引"))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .loaded:
+            list
+        }
+    }
+
+    private func errorView(message: String) -> some View {
+        ContentUnavailableView {
+            Label("加载失败", systemImage: "exclamationmark.triangle")
+        } description: {
+            Text(message)
+        } actions: {
+            Button("重新加载") { Task { await viewModel.refresh() } }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var list: some View {
+        List {
+            switch viewModel.selectedSegment {
+            case .songs:
+                ForEach(Array(viewModel.filteredSongs.enumerated()), id: \.element.id) { index, song in
+                    SongRowView(song: song, isPlaying: playbackManager.currentSong?.id == song.id)
+                        .onTapGesture {
+                            playbackManager.updatePlaylist(viewModel.filteredSongs, currentIndex: index)
+                            playbackManager.play()
+                        }
+                        .onAppear { viewModel.loadMoreSongsIfNeeded(currentItem: song) }
+                }
+            case .albums:
+                ForEach(viewModel.filteredAlbums) { album in
+                    NavigationLink(value: album) {
+                        albumRow(album)
+                    }
+                    .onAppear { viewModel.loadMoreAlbumsIfNeeded(currentItem: album) }
+                }
+            case .artists:
+                ForEach(viewModel.filteredArtists) { artist in
+                    artistRow(artist)
+                        .onAppear { viewModel.loadMoreArtistsIfNeeded(currentItem: artist) }
+                }
+            }
+        }
+        .listStyle(.plain)
+        .refreshable { await viewModel.refresh() }
     }
 
     private func albumRow(_ album: Album) -> some View {
@@ -84,8 +119,9 @@ struct LibraryView: View {
 }
 
 #Preview {
+    let sessionManager = NASSessionManager()
     NavigationStack {
-        LibraryView(musicRepository: MockMusicRepository())
+        LibraryView(providerStore: MusicLibraryProviderStore(sessionManager: sessionManager))
     }
     .environmentObject(PlaybackManager())
 }

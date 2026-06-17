@@ -15,16 +15,16 @@ struct MiniPlayerView: View {
     var body: some View {
         if let song = playbackManager.currentSong {
             HStack(spacing: 12) {
-                AlbumArtView(id: song.id.uuidString, cornerRadius: 6)
+                AlbumArtView(id: song.id, cornerRadius: 6)
                     .frame(width: 40, height: 40)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(song.title)
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
-                    Text(song.artist)
+                    Text(playbackManager.playbackError ?? (song.artist ?? "未知歌手"))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(playbackManager.playbackError == nil ? Color.secondary : Color.red)
                         .lineLimit(1)
                 }
 
@@ -33,10 +33,15 @@ struct MiniPlayerView: View {
                 Button {
                     playbackManager.toggle()
                 } label: {
-                    Image(systemName: playbackManager.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.title3)
+                    if playbackManager.isLoadingStream {
+                        ProgressView()
+                    } else {
+                        Image(systemName: playbackManager.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.title3)
+                    }
                 }
                 .buttonStyle(.plain)
+                .disabled(playbackManager.isLoadingStream)
 
                 Button {
                     playbackManager.next()
@@ -59,9 +64,9 @@ struct MiniPlayerView: View {
 }
 
 private func makePreviewPlaybackManager() -> PlaybackManager {
-    let manager = PlaybackManager()
-    let repository = MockMusicRepository()
-    manager.updatePlaylist(repository.songs, currentIndex: 0)
+    let provider = MockMusicLibraryProvider()
+    let manager = PlaybackManager(musicLibraryProvider: provider)
+    manager.updatePlaylist(provider.songs, currentIndex: 0)
     manager.play()
     return manager
 }
