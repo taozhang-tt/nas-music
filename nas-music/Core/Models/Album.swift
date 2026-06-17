@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct Album: Identifiable, Hashable {
+struct Album: Identifiable {
     let id: String
     let title: String
     let artistName: String
@@ -16,5 +16,17 @@ struct Album: Identifiable, Hashable {
 
     var totalDuration: TimeInterval {
         songs.reduce(0) { $0 + $1.duration }
+    }
+}
+
+extension Album: Equatable {
+    static func == (lhs: Album, rhs: Album) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+extension Album: Hashable {
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }

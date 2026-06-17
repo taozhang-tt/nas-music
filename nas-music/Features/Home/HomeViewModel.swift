@@ -16,21 +16,19 @@ final class HomeViewModel: ObservableObject {
     @Published var searchText = ""
     @Published private(set) var searchResults: [Song] = []
 
-    private let musicLibrary: MusicLibraryProviding
-    private let playbackManager: PlaybackManager
+    private let musicRepository: MusicRepository
     private var allSongs: [Song] = []
 
-    init(musicLibrary: MusicLibraryProviding, playbackManager: PlaybackManager) {
-        self.musicLibrary = musicLibrary
-        self.playbackManager = playbackManager
+    init(musicRepository: MusicRepository) {
+        self.musicRepository = musicRepository
     }
 
     func load() async {
-        async let recent = musicLibrary.fetchRecentlyPlayed()
-        async let added = musicLibrary.fetchRecentlyAdded()
-        async let songs = musicLibrary.fetchAllSongs()
-        async let albums = musicLibrary.fetchAllAlbums()
-        async let artists = musicLibrary.fetchAllArtists()
+        async let recent = musicRepository.fetchRecentlyPlayed()
+        async let added = musicRepository.fetchRecentlyAdded()
+        async let songs = musicRepository.fetchAllSongs()
+        async let albums = musicRepository.fetchAllAlbums()
+        async let artists = musicRepository.fetchAllArtists()
 
         recentlyPlayed = await recent
         recentlyAdded = await added
@@ -47,19 +45,7 @@ final class HomeViewModel: ObservableObject {
         }
         let keyword = searchText.lowercased()
         searchResults = allSongs.filter {
-            $0.title.lowercased().contains(keyword) || $0.artistName.lowercased().contains(keyword)
+            $0.title.lowercased().contains(keyword) || $0.artist.lowercased().contains(keyword)
         }
-    }
-
-    func playRecentlyPlayed(at index: Int) {
-        playbackManager.play(songs: recentlyPlayed, startAt: index)
-    }
-
-    func playRecentlyAdded(at index: Int) {
-        playbackManager.play(songs: recentlyAdded, startAt: index)
-    }
-
-    func playSearchResult(at index: Int) {
-        playbackManager.play(songs: searchResults, startAt: index)
     }
 }

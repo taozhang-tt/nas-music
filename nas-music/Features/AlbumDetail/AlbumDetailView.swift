@@ -7,11 +7,10 @@ import SwiftUI
 
 struct AlbumDetailView: View {
     @StateObject private var viewModel: AlbumDetailViewModel
+    @EnvironmentObject private var playbackManager: PlaybackManager
 
-    init(album: Album, playbackManager: PlaybackManager) {
-        _viewModel = StateObject(
-            wrappedValue: AlbumDetailViewModel(album: album, playbackManager: playbackManager)
-        )
+    init(album: Album) {
+        _viewModel = StateObject(wrappedValue: AlbumDetailViewModel(album: album))
     }
 
     var body: some View {
@@ -34,7 +33,8 @@ struct AlbumDetailView: View {
                     }
 
                     Button {
-                        viewModel.playAll()
+                        playbackManager.updatePlaylist(viewModel.album.songs, currentIndex: 0)
+                        playbackManager.play()
                     } label: {
                         Label("播放全部", systemImage: "play.fill")
                             .frame(maxWidth: .infinity)
@@ -50,7 +50,7 @@ struct AlbumDetailView: View {
             Section {
                 ForEach(Array(viewModel.album.songs.enumerated()), id: \.element.id) { index, song in
                     HStack {
-                        Text("\(song.trackNumber)")
+                        Text("\(index + 1)")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .frame(width: 24, alignment: .leading)
@@ -61,7 +61,10 @@ struct AlbumDetailView: View {
                             .foregroundStyle(.secondary)
                     }
                     .contentShape(Rectangle())
-                    .onTapGesture { viewModel.playSong(at: index) }
+                    .onTapGesture {
+                        playbackManager.updatePlaylist(viewModel.album.songs, currentIndex: index)
+                        playbackManager.play()
+                    }
                 }
             }
         }
@@ -69,4 +72,11 @@ struct AlbumDetailView: View {
         .navigationTitle(viewModel.album.title)
         .navigationBarTitleDisplayMode(.inline)
     }
+}
+
+#Preview {
+    NavigationStack {
+        AlbumDetailView(album: MockMusicRepository().albums[0])
+    }
+    .environmentObject(PlaybackManager())
 }

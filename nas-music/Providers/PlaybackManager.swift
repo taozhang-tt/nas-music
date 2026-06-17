@@ -2,8 +2,8 @@
 //  PlaybackManager.swift
 //  nas-music
 //
-//  模拟播放器传输状态（队列、进度、播放/暂停、随机、循环）。
-//  没有接入真实 AVPlayer/音频文件，用 Timer 模拟进度推进。
+//  全局共享的播放状态，通过 @EnvironmentObject 注入到所有页面。
+//  没有接入真实 AVPlayer/音频文件，用 Timer 模拟播放进度推进。
 //
 
 import Foundation
@@ -11,7 +11,7 @@ import Combine
 
 @MainActor
 final class PlaybackManager: ObservableObject {
-    @Published private(set) var queue: [Song] = []
+    @Published private(set) var playlist: [Song] = []
     @Published private(set) var currentIndex: Int = 0
     @Published private(set) var isPlaying: Bool = false
     @Published private(set) var currentTime: TimeInterval = 0
@@ -21,7 +21,7 @@ final class PlaybackManager: ObservableObject {
     private var timerCancellable: AnyCancellable?
 
     var currentSong: Song? {
-        queue.indices.contains(currentIndex) ? queue[currentIndex] : nil
+        playlist.indices.contains(currentIndex) ? playlist[currentIndex] : nil
     }
 
     var duration: TimeInterval {
@@ -32,39 +32,60 @@ final class PlaybackManager: ObservableObject {
         duration > 0 ? min(currentTime / duration, 1) : 0
     }
 
-    func play(songs: [Song], startAt index: Int = 0) {
-        guard songs.indices.contains(index) else { return }
-        queue = songs
-        currentIndex = index
+    /// 用给定的歌曲列表替换播放列表，并定位到 currentIndex；不会自动开始播放，
+    /// 调用方需要紧接着调用 `play()`（这样 next()/previous() 才能在这组歌曲里循环）。
+    func updatePlaylist(_ songs: [Song], currentIndex: Int) {
+        playlist = songs
+        self.currentIndex = songs.indices.contains(currentIndex) ? currentIndex : 0
         currentTime = 0
-        isPlaying = true
-        startTimer()
     }
 
-    func playSong(at index: Int) {
-        guard queue.indices.contains(index) else { return }
-        currentIndex = index
-        currentTime = 0
-        isPlaying = true
-        startTimer()
-    }
-
-    func playPause() {
-        guard currentSong != nil else { return }
-        isPlaying.toggle()
-        isPlaying ? startTimer() : stopTimer()
-    }
-
-    func skipToNext() {
-        advance(by: 1)
-    }
-
-    func skipToPrevious() {
-        if currentTime > 3 {
-            currentTime = 0
-            return
+    /// 播放指定歌曲：如果它已经在当前播放列表里，直接跳到对应位置（不打乱队列，给播放队列点歌用）；
+    /// 否则把它设为单曲播放列表。
+    func play(song: Song) {
+        if let index = playlist.firstIndex(where: { $0.id == song.id }) {
+            currentIndex = index
+        } else {
+            playlist = [song]
+            currentIndex = 0
         }
-        advance(by: -1)
+        currentTime = 0
+        play()
+    }
+
+    func play() {
+        guard currentSong != nil else { return }
+        isPlaying = true
+        startTimer()
+    }
+
+    func pause() {
+        isPlaying = false
+        stopTimer()
+    }
+
+    func toggle() {
+        isPlaying ? pause() : play()
+    }
+
+    func next() {
+        guard !playlist.isEmpty else { return }
+        if isShuffled, playlist.count > 1 {
+            var randomIndex = Int.random(in: 0..<playlist.count)
+            while randomIndex == currentIndex {
+                randomIndex = Int.random(in: 0..<playlist.count)
+            }
+            currentIndex = randomIndex
+        } else {
+            currentIndex = (currentIndex + 1) % playlist.count
+        }
+        currentTime = 0
+    }
+
+    func previous() {
+        guard !playlist.isEmpty else { return }
+        currentIndex = (currentIndex - 1 + playlist.count) % playlist.count
+        currentTime = 0
     }
 
     func seek(to time: TimeInterval) {
@@ -73,14 +94,6 @@ final class PlaybackManager: ObservableObject {
 
     func toggleShuffle() {
         isShuffled.toggle()
-    }
-
-    func removeFromQueue(at index: Int) {
-        guard queue.indices.contains(index), index != currentIndex else { return }
-        queue.remove(at: index)
-        if index < currentIndex {
-            currentIndex -= 1
-        }
     }
 
     private func startTimer() {
@@ -97,7 +110,9 @@ final class PlaybackManager: ObservableObject {
         timerCancellable = nil
     }
 
-    private func tick() {
+    /// 每秒被 Timer 调用一次；去掉 `private` 是为了让单元测试可以直接调用它模拟时间流逝，
+    /// 不必等待真实 Timer 触发。
+    func tick() {
         guard isPlaying else { return }
         currentTime += 1
         if currentTime >= duration {
@@ -110,23 +125,7 @@ final class PlaybackManager: ObservableObject {
         case .one:
             currentTime = 0
         case .off, .all:
-            advance(by: 1)
-        }
-    }
-
-    private func advance(by delta: Int) {
-        guard !queue.isEmpty else { return }
-        let nextIndex = currentIndex + delta
-        if queue.indices.contains(nextIndex) {
-            currentIndex = nextIndex
-            currentTime = 0
-        } else if repeatMode == .all {
-            currentIndex = delta > 0 ? 0 : queue.count - 1
-            currentTime = 0
-        } else {
-            currentTime = duration
-            isPlaying = false
-            stopTimer()
+            next()
         }
     }
 }

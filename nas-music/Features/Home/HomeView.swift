@@ -7,11 +7,10 @@ import SwiftUI
 
 struct HomeView: View {
     @StateObject private var viewModel: HomeViewModel
+    @EnvironmentObject private var playbackManager: PlaybackManager
 
-    init(musicLibrary: MusicLibraryProviding, playbackManager: PlaybackManager) {
-        _viewModel = StateObject(
-            wrappedValue: HomeViewModel(musicLibrary: musicLibrary, playbackManager: playbackManager)
-        )
+    init(musicRepository: MusicRepository) {
+        _viewModel = StateObject(wrappedValue: HomeViewModel(musicRepository: musicRepository))
     }
 
     var body: some View {
@@ -55,16 +54,17 @@ struct HomeView: View {
                 HStack(spacing: 16) {
                     ForEach(Array(viewModel.recentlyPlayed.enumerated()), id: \.element.id) { index, song in
                         Button {
-                            viewModel.playRecentlyPlayed(at: index)
+                            playbackManager.updatePlaylist(viewModel.recentlyPlayed, currentIndex: index)
+                            playbackManager.play()
                         } label: {
                             VStack(alignment: .leading, spacing: 6) {
-                                AlbumArtView(id: song.id, cornerRadius: 10)
+                                AlbumArtView(id: song.id.uuidString, cornerRadius: 10)
                                     .frame(width: 120, height: 120)
-                                Text(song.albumTitle)
+                                Text(song.album)
                                     .font(.subheadline.weight(.medium))
                                     .foregroundStyle(.primary)
                                     .lineLimit(1)
-                                Text(song.artistName)
+                                Text(song.artist)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
@@ -114,7 +114,10 @@ struct HomeView: View {
             VStack(spacing: 14) {
                 ForEach(Array(viewModel.recentlyAdded.enumerated()), id: \.element.id) { index, song in
                     SongRowView(song: song)
-                        .onTapGesture { viewModel.playRecentlyAdded(at: index) }
+                        .onTapGesture {
+                            playbackManager.updatePlaylist(viewModel.recentlyAdded, currentIndex: index)
+                            playbackManager.play()
+                        }
                 }
             }
         }
@@ -124,7 +127,10 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 14) {
             ForEach(Array(viewModel.searchResults.enumerated()), id: \.element.id) { index, song in
                 SongRowView(song: song)
-                    .onTapGesture { viewModel.playSearchResult(at: index) }
+                    .onTapGesture {
+                        playbackManager.updatePlaylist(viewModel.searchResults, currentIndex: index)
+                        playbackManager.play()
+                    }
             }
 
             if viewModel.searchResults.isEmpty {
@@ -135,4 +141,11 @@ struct HomeView: View {
             }
         }
     }
+}
+
+#Preview {
+    NavigationStack {
+        HomeView(musicRepository: MockMusicRepository())
+    }
+    .environmentObject(PlaybackManager())
 }

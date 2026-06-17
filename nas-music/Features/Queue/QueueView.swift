@@ -2,29 +2,30 @@
 //  QueueView.swift
 //  nas-music
 //
-//  播放队列：当前播放 + 即将播放，可切歌、可从队列移除。
+//  播放队列：展示当前播放列表，点击任意歌曲切换播放。
+//  直接绑定 @EnvironmentObject 的 PlaybackManager。
 //
 
 import SwiftUI
 
 struct QueueView: View {
-    @ObservedObject var viewModel: QueueViewModel
+    @EnvironmentObject private var playbackManager: PlaybackManager
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             List {
-                if let currentIndex = viewModel.queue.indices.contains(viewModel.currentIndex) ? viewModel.currentIndex : nil {
+                if playbackManager.playlist.indices.contains(playbackManager.currentIndex) {
                     Section("正在播放") {
-                        row(for: viewModel.queue[currentIndex], at: currentIndex)
+                        row(for: playbackManager.playlist[playbackManager.currentIndex], at: playbackManager.currentIndex)
                     }
                 }
 
-                let upcoming = viewModel.queue.indices.filter { $0 > viewModel.currentIndex }
+                let upcoming = playbackManager.playlist.indices.filter { $0 > playbackManager.currentIndex }
                 if !upcoming.isEmpty {
                     Section("接下来播放") {
                         ForEach(upcoming, id: \.self) { index in
-                            row(for: viewModel.queue[index], at: index)
+                            row(for: playbackManager.playlist[index], at: index)
                         }
                     }
                 }
@@ -40,17 +41,21 @@ struct QueueView: View {
     }
 
     private func row(for song: Song, at index: Int) -> some View {
-        SongRowView(song: song, isPlaying: viewModel.isCurrent(index))
+        SongRowView(song: song, isPlaying: index == playbackManager.currentIndex)
             .contentShape(Rectangle())
-            .onTapGesture { viewModel.selectSong(at: index) }
-            .swipeActions(edge: .trailing) {
-                if !viewModel.isCurrent(index) {
-                    Button(role: .destructive) {
-                        viewModel.removeSong(at: index)
-                    } label: {
-                        Label("移除", systemImage: "trash")
-                    }
-                }
-            }
+            .onTapGesture { playbackManager.play(song: song) }
     }
+}
+
+private func makePreviewPlaybackManager() -> PlaybackManager {
+    let manager = PlaybackManager()
+    let repository = MockMusicRepository()
+    manager.updatePlaylist(repository.songs, currentIndex: 0)
+    manager.play()
+    return manager
+}
+
+#Preview {
+    QueueView()
+        .environmentObject(makePreviewPlaybackManager())
 }

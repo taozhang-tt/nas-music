@@ -7,11 +7,10 @@ import SwiftUI
 
 struct LibraryView: View {
     @StateObject private var viewModel: LibraryViewModel
+    @EnvironmentObject private var playbackManager: PlaybackManager
 
-    init(musicLibrary: MusicLibraryProviding, playbackManager: PlaybackManager) {
-        _viewModel = StateObject(
-            wrappedValue: LibraryViewModel(musicLibrary: musicLibrary, playbackManager: playbackManager)
-        )
+    init(musicRepository: MusicRepository) {
+        _viewModel = StateObject(wrappedValue: LibraryViewModel(musicRepository: musicRepository))
     }
 
     var body: some View {
@@ -29,7 +28,10 @@ struct LibraryView: View {
                 case .songs:
                     ForEach(Array(viewModel.filteredSongs.enumerated()), id: \.element.id) { index, song in
                         SongRowView(song: song)
-                            .onTapGesture { viewModel.playSong(at: index) }
+                            .onTapGesture {
+                                playbackManager.updatePlaylist(viewModel.filteredSongs, currentIndex: index)
+                                playbackManager.play()
+                            }
                     }
                 case .albums:
                     ForEach(viewModel.filteredAlbums) { album in
@@ -48,7 +50,7 @@ struct LibraryView: View {
         .searchable(text: $viewModel.searchText, prompt: "搜索音乐")
         .navigationTitle("音乐库")
         .navigationDestination(for: Album.self) { album in
-            AlbumDetailView(album: album, playbackManager: viewModel.playbackManager)
+            AlbumDetailView(album: album)
         }
         .task { await viewModel.load() }
     }
@@ -79,4 +81,11 @@ struct LibraryView: View {
             }
         }
     }
+}
+
+#Preview {
+    NavigationStack {
+        LibraryView(musicRepository: MockMusicRepository())
+    }
+    .environmentObject(PlaybackManager())
 }

@@ -6,11 +6,27 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		DE00322E14774225B0E0798F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 84CD7EBC2FE2322A006C9D5B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 84CD7EC32FE2322A006C9D5B;
+			remoteInfo = "nas-music";
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		84CD7EC42FE2322A006C9D5B /* nas-music.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "nas-music.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D1864C6208EF4FEDBE1CAC94 /* nas-musicTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "nas-musicTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		43AD88012E1242BBA923C191 /* nas-musicTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "nas-musicTests";
+			sourceTree = "<group>";
+		};
 		84CD7EC62FE2322A006C9D5B /* nas-music */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "nas-music";
@@ -19,6 +35,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		2F568690E96A4C02B7ADD481 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		84CD7EC12FE2322A006C9D5B /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -33,6 +56,7 @@
 			isa = PBXGroup;
 			children = (
 				84CD7EC62FE2322A006C9D5B /* nas-music */,
+				43AD88012E1242BBA923C191 /* nas-musicTests */,
 				84CD7EC52FE2322A006C9D5B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				84CD7EC42FE2322A006C9D5B /* nas-music.app */,
+				D1864C6208EF4FEDBE1CAC94 /* nas-musicTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,6 +73,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		6E65A243DE1746A681A0A6EA /* nas-musicTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5055514C295349C3911AF465 /* Build configuration list for PBXNativeTarget "nas-musicTests" */;
+			buildPhases = (
+				240F1BE313CC49ED84223D4C /* Sources */,
+				2F568690E96A4C02B7ADD481 /* Frameworks */,
+				F0143EEE33894EB3B27FE2A4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E2858B4CA2B0406D80E48865 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				43AD88012E1242BBA923C191 /* nas-musicTests */,
+			);
+			name = "nas-musicTests";
+			packageProductDependencies = (
+			);
+			productName = "nas-musicTests";
+			productReference = D1864C6208EF4FEDBE1CAC94 /* nas-musicTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		84CD7EC32FE2322A006C9D5B /* nas-music */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 84CD7ECF2FE2322B006C9D5B /* Build configuration list for PBXNativeTarget "nas-music" */;
@@ -80,6 +128,10 @@
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
+					6E65A243DE1746A681A0A6EA = {
+						CreatedOnToolsVersion = 26.4.1;
+						TestTargetID = 84CD7EC32FE2322A006C9D5B;
+					};
 					84CD7EC32FE2322A006C9D5B = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
@@ -100,6 +152,7 @@
 			projectRoot = "";
 			targets = (
 				84CD7EC32FE2322A006C9D5B /* nas-music */,
+				6E65A243DE1746A681A0A6EA /* nas-musicTests */,
 			);
 		};
 /* End PBXProject section */
@@ -112,9 +165,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F0143EEE33894EB3B27FE2A4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		240F1BE313CC49ED84223D4C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		84CD7EC02FE2322A006C9D5B /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -124,7 +191,33 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		E2858B4CA2B0406D80E48865 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 84CD7EC32FE2322A006C9D5B /* nas-music */;
+			targetProxy = DE00322E14774225B0E0798F /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		37C7141FB60B4C0AB0948478 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 996S5NL7SD;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "zero-tt.top.nas-music.Tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/nas-music.app/nas-music";
+			};
+			name = Release;
+		};
 		84CD7ECD2FE2322B006C9D5B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -312,9 +405,36 @@
 			};
 			name = Release;
 		};
+		D9CEA2F6FB2844CBAB827A86 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 996S5NL7SD;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "zero-tt.top.nas-music.Tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/nas-music.app/nas-music";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		5055514C295349C3911AF465 /* Build configuration list for PBXNativeTarget "nas-musicTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D9CEA2F6FB2844CBAB827A86 /* Debug */,
+				37C7141FB60B4C0AB0948478 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		84CD7EBF2FE2322A006C9D5B /* Build configuration list for PBXProject "nas-music" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

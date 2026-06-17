@@ -5,11 +5,12 @@
 
 import Foundation
 
-struct Song: Identifiable, Hashable {
-    let id: String
+struct Song: Identifiable {
+    let id: UUID
     let title: String
-    let artistName: String
-    let albumTitle: String
+    let artist: String
+    let album: String
     let duration: TimeInterval
-    let trackNumber: Int
+    let coverURL: String?
+    let streamURL: URL?
 }

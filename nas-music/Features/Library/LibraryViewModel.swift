@@ -22,25 +22,23 @@ final class LibraryViewModel: ObservableObject {
     @Published private(set) var albums: [Album] = []
     @Published private(set) var artists: [Artist] = []
 
-    let playbackManager: PlaybackManager
-    private let musicLibrary: MusicLibraryProviding
+    private let musicRepository: MusicRepository
 
-    init(musicLibrary: MusicLibraryProviding, playbackManager: PlaybackManager) {
-        self.musicLibrary = musicLibrary
-        self.playbackManager = playbackManager
+    init(musicRepository: MusicRepository) {
+        self.musicRepository = musicRepository
     }
 
     func load() async {
-        async let songsResult = musicLibrary.fetchAllSongs()
-        async let albumsResult = musicLibrary.fetchAllAlbums()
-        async let artistsResult = musicLibrary.fetchAllArtists()
+        async let songsResult = musicRepository.fetchAllSongs()
+        async let albumsResult = musicRepository.fetchAllAlbums()
+        async let artistsResult = musicRepository.fetchAllArtists()
         songs = await songsResult
         albums = await albumsResult
         artists = await artistsResult
     }
 
     var filteredSongs: [Song] {
-        filter(songs) { $0.title.lowercased().contains($1) || $0.artistName.lowercased().contains($1) }
+        filter(songs) { $0.title.lowercased().contains($1) || $0.artist.lowercased().contains($1) }
     }
 
     var filteredAlbums: [Album] {
@@ -55,9 +53,5 @@ final class LibraryViewModel: ObservableObject {
         guard !searchText.isEmpty else { return items }
         let keyword = searchText.lowercased()
         return items.filter { matches($0, keyword) }
-    }
-
-    func playSong(at index: Int) {
-        playbackManager.play(songs: filteredSongs, startAt: index)
     }
 }

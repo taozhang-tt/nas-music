@@ -3,18 +3,15 @@
 //  nas-music
 //
 //  深色风格全屏播放页：封面、歌曲名、歌手、进度条、播放控制按钮、队列入口。
+//  直接绑定 @EnvironmentObject 的 PlaybackManager，和其它页面共享同一份播放状态。
 //
 
 import SwiftUI
 
 struct PlayerView: View {
-    @StateObject private var viewModel: PlayerViewModel
+    @EnvironmentObject private var playbackManager: PlaybackManager
     @Environment(\.dismiss) private var dismiss
     @State private var isQueuePresented = false
-
-    init(playbackManager: PlaybackManager) {
-        _viewModel = StateObject(wrappedValue: PlayerViewModel(playbackManager: playbackManager))
-    }
 
     var body: some View {
         ZStack {
@@ -30,8 +27,8 @@ struct PlayerView: View {
 
                 Spacer(minLength: 0)
 
-                if let song = viewModel.song {
-                    AlbumArtView(id: song.id, cornerRadius: 16)
+                if let song = playbackManager.currentSong {
+                    AlbumArtView(id: song.id.uuidString, cornerRadius: 16)
                         .frame(width: 280, height: 280)
                         .shadow(color: .black.opacity(0.5), radius: 20, y: 10)
 
@@ -39,7 +36,7 @@ struct PlayerView: View {
                         Text(song.title)
                             .font(.title2.bold())
                             .foregroundStyle(.white)
-                        Text(song.artistName)
+                        Text(song.artist)
                             .font(.body)
                             .foregroundStyle(.white.opacity(0.6))
                     }
@@ -58,7 +55,7 @@ struct PlayerView: View {
         }
         .preferredColorScheme(.dark)
         .sheet(isPresented: $isQueuePresented) {
-            QueueView(viewModel: viewModel.makeQueueViewModel())
+            QueueView()
                 .presentationDetents([.medium, .large])
         }
     }
@@ -89,17 +86,17 @@ struct PlayerView: View {
     private var progressSection: some View {
         VStack(spacing: 6) {
             Slider(value: Binding(
-                get: { viewModel.progress },
-                set: { viewModel.seek(toFraction: $0) }
+                get: { playbackManager.progress },
+                set: { playbackManager.seek(to: playbackManager.duration * $0) }
             ))
             .tint(.white)
 
             HStack {
-                Text(viewModel.currentTimeText)
+                Text(playbackManager.currentTime.formattedAsMinutesSeconds)
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.6))
                 Spacer()
-                Text(viewModel.durationText)
+                Text(playbackManager.duration.formattedAsMinutesSeconds)
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.6))
             }
@@ -109,16 +106,16 @@ struct PlayerView: View {
     private var controlsSection: some View {
         HStack(spacing: 36) {
             Button {
-                viewModel.toggleShuffle()
+                playbackManager.toggleShuffle()
             } label: {
                 Image(systemName: "shuffle")
                     .font(.title3)
-                    .foregroundStyle(viewModel.isShuffled ? Color.accentColor : .white.opacity(0.7))
+                    .foregroundStyle(playbackManager.isShuffled ? Color.accentColor : .white.opacity(0.7))
             }
             .buttonStyle(.plain)
 
             Button {
-                viewModel.skipToPrevious()
+                playbackManager.previous()
             } label: {
                 Image(systemName: "backward.fill")
                     .font(.title)
@@ -127,16 +124,16 @@ struct PlayerView: View {
             .buttonStyle(.plain)
 
             Button {
-                viewModel.playPause()
+                playbackManager.toggle()
             } label: {
-                Image(systemName: viewModel.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                Image(systemName: playbackManager.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                     .font(.system(size: 64))
                     .foregroundStyle(.white)
             }
             .buttonStyle(.plain)
 
             Button {
-                viewModel.skipToNext()
+                playbackManager.next()
             } label: {
                 Image(systemName: "forward.fill")
                     .font(.title)
@@ -145,11 +142,11 @@ struct PlayerView: View {
             .buttonStyle(.plain)
 
             Button {
-                viewModel.cycleRepeatMode()
+                playbackManager.repeatMode.cycle()
             } label: {
-                Image(systemName: viewModel.repeatMode.iconName)
+                Image(systemName: playbackManager.repeatMode.iconName)
                     .font(.title3)
-                    .foregroundStyle(viewModel.repeatMode.isActive ? Color.accentColor : .white.opacity(0.7))
+                    .foregroundStyle(playbackManager.repeatMode.isActive ? Color.accentColor : .white.opacity(0.7))
             }
             .buttonStyle(.plain)
         }
@@ -163,8 +160,8 @@ struct PlayerView: View {
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "list.bullet")
-                    if viewModel.queueCount > 0 {
-                        Text("\(viewModel.queueCount)")
+                    if playbackManager.playlist.count > 0 {
+                        Text("\(playbackManager.playlist.count)")
                             .font(.caption)
                     }
                 }
@@ -174,4 +171,17 @@ struct PlayerView: View {
             .buttonStyle(.plain)
         }
     }
+}
+
+private func makePreviewPlaybackManager() -> PlaybackManager {
+    let manager = PlaybackManager()
+    let repository = MockMusicRepository()
+    manager.updatePlaylist(repository.songs, currentIndex: 0)
+    manager.play()
+    return manager
+}
+
+#Preview {
+    PlayerView()
+        .environmentObject(makePreviewPlaybackManager())
 }

@@ -35,14 +35,14 @@ struct DownloadsView: View {
 
     private func row(for item: DownloadItem) -> some View {
         HStack(spacing: 12) {
-            AlbumArtView(id: item.song.id, cornerRadius: 6)
+            AlbumArtView(id: item.song.id.uuidString, cornerRadius: 6)
                 .frame(width: 44, height: 44)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.song.title)
                     .font(.body)
                     .lineLimit(1)
-                Text(item.song.artistName)
+                Text(item.song.artist)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -95,5 +95,20 @@ struct DownloadsView: View {
             }
             .buttonStyle(.plain)
         }
+    }
+}
+
+#Preview {
+    let repository = MockMusicRepository()
+    let items = repository.songs.prefix(3).enumerated().map { index, song in
+        DownloadItem(
+            id: "download-\(song.id.uuidString)",
+            song: song,
+            status: index == 0 ? .completed : (index == 1 ? .failed : .downloading),
+            progress: index == 0 ? 1 : (index == 1 ? 0.4 : 0.65)
+        )
+    }
+    NavigationStack {
+        DownloadsView(downloadManager: DownloadManager(items: items))
     }
 }
