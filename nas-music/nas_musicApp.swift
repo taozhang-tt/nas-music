@@ -16,7 +16,7 @@ struct nas_musicApp: App {
     private let musicRepository: MusicRepository
     @StateObject private var playbackManager: PlaybackManager
     @StateObject private var downloadManager: DownloadManager
-    @StateObject private var nasServerStore: NASServerStore
+    @StateObject private var nasSessionManager: NASSessionManager
     private let nowPlayingInfoManager: NowPlayingInfoManager
     private let remoteCommandManager: RemoteCommandManager
 
@@ -37,27 +37,7 @@ struct nas_musicApp: App {
         }
         _downloadManager = StateObject(wrappedValue: DownloadManager(items: seedDownloads))
 
-        let seedServers = [
-            NASServerProfile(
-                id: "nas-home",
-                name: "群晖 NAS（家庭）",
-                host: "192.168.1.10",
-                port: 5001,
-                username: "admin",
-                useQuickConnect: false,
-                status: .connected
-            ),
-            NASServerProfile(
-                id: "nas-quickconnect",
-                name: "群晖 NAS（QuickConnect）",
-                host: "mynas.quickconnect.to",
-                port: 5001,
-                username: "wuchang",
-                useQuickConnect: true,
-                status: .disconnected
-            ),
-        ]
-        _nasServerStore = StateObject(wrappedValue: NASServerStore(servers: seedServers))
+        _nasSessionManager = StateObject(wrappedValue: NASSessionManager())
     }
 
     var body: some Scene {
@@ -65,7 +45,7 @@ struct nas_musicApp: App {
             RootTabView(
                 musicRepository: musicRepository,
                 downloadManager: downloadManager,
-                nasServerStore: nasServerStore
+                nasSessionManager: nasSessionManager
             )
             .environmentObject(playbackManager)
         }

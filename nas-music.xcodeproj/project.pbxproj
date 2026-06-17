@@ -21,6 +21,16 @@
 		D1864C6208EF4FEDBE1CAC94 /* nas-musicTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "nas-musicTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* Exceptions for "nas-music" folder in "nas-music" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 84CD7EC32FE2322A006C9D5B /* nas-music */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		43AD88012E1242BBA923C191 /* nas-musicTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -30,22 +40,12 @@
 		84CD7EC62FE2322A006C9D5B /* nas-music */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				A1B2C3D4E5F6A7B8C9D0E1F2 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+				A1B2C3D4E5F6A7B8C9D0E1F2 /* Exceptions for "nas-music" folder in "nas-music" target */,
 			);
 			path = "nas-music";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
-
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		A1B2C3D4E5F6A7B8C9D0E1F2 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 84CD7EC32FE2322A006C9D5B /* nas-music */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		2F568690E96A4C02B7ADD481 /* Frameworks */ = {

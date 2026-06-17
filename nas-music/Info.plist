@@ -6,5 +6,7 @@
 	<array>
 		<string>audio</string>
 	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>NASMusic 需要访问局域网中的群晖 NAS，用于连接你的私人音乐库并播放音乐。</string>
 </dict>
 </plist>

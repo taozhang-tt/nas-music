@@ -11,7 +11,7 @@ import SwiftUI
 struct RootTabView: View {
     let musicRepository: MusicRepository
     @ObservedObject var downloadManager: DownloadManager
-    @ObservedObject var nasServerStore: NASServerStore
+    @ObservedObject var nasSessionManager: NASSessionManager
 
     @EnvironmentObject private var playbackManager: PlaybackManager
     @State private var isPlayerPresented = false
@@ -34,7 +34,7 @@ struct RootTabView: View {
             .tabItem { Label("下载", systemImage: "arrow.down.circle.fill") }
 
             NavigationStack {
-                NASSettingsView(serverStore: nasServerStore)
+                NASSettingsView(sessionManager: nasSessionManager)
             }
             .tabItem { Label("设置", systemImage: "gearshape.fill") }
         }
