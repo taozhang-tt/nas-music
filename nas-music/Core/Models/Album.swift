@@ -9,13 +9,14 @@
 
 import Foundation
 
-struct Album: Identifiable, Equatable, Hashable {
+struct Album: Identifiable, Equatable, Hashable, Codable {
     let id: String
     let title: String
     let artistName: String
     let year: Int?
     let trackCount: Int?
     let coverId: String?
+    let source: MusicSource
 
     init(
         id: String,
@@ -23,7 +24,8 @@ struct Album: Identifiable, Equatable, Hashable {
         artistName: String,
         year: Int? = nil,
         trackCount: Int? = nil,
-        coverId: String? = nil
+        coverId: String? = nil,
+        source: MusicSource
     ) {
         self.id = id
         self.title = title
@@ -31,5 +33,6 @@ struct Album: Identifiable, Equatable, Hashable {
         self.year = year
         self.trackCount = trackCount
         self.coverId = coverId
+        self.source = source
     }
 }

@@ -22,11 +22,18 @@ final class NASSettingsViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var testResultMessage: String?
 
+    @Published private(set) var artworkCacheSizeText: String = "—"
+    @Published private(set) var artworkCacheFileCountText: String = "—"
+    @Published private(set) var isClearingArtworkCache = false
+    @Published var artworkCacheErrorMessage: String?
+
     private let sessionManager: NASSessionManager
+    private let artworkCacheManager: ArtworkCacheManager
     private var cancellable: AnyCancellable?
 
-    init(sessionManager: NASSessionManager) {
+    init(sessionManager: NASSessionManager, artworkCacheManager: ArtworkCacheManager = .shared) {
         self.sessionManager = sessionManager
+        self.artworkCacheManager = artworkCacheManager
         cancellable = sessionManager.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         loadFormFromConfig()
     }
@@ -130,6 +137,30 @@ final class NASSettingsViewModel: ObservableObject {
     func clearCredentials() {
         sessionManager.clearCredentials()
         password = ""
+    }
+
+    func loadArtworkCacheStats() async {
+        let stats = await artworkCacheManager.cacheStats()
+        artworkCacheSizeText = Self.formattedByteCount(stats.totalBytes)
+        artworkCacheFileCountText = "\(stats.fileCount) 个文件"
+    }
+
+    func clearArtworkCache() {
+        artworkCacheErrorMessage = nil
+        isClearingArtworkCache = true
+        Task {
+            do {
+                try await artworkCacheManager.clearArtworkCache()
+                await loadArtworkCacheStats()
+            } catch {
+                artworkCacheErrorMessage = (error as? LocalizedError)?.errorDescription ?? "清除封面缓存失败，请稍后重试。"
+            }
+            isClearingArtworkCache = false
+        }
+    }
+
+    private static func formattedByteCount(_ bytes: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 
     private func runBusyTask(_ operation: @escaping () async -> Void) {

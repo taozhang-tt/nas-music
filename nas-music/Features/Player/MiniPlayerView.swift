@@ -15,7 +15,7 @@ struct MiniPlayerView: View {
     var body: some View {
         if let song = playbackManager.currentSong {
             HStack(spacing: 12) {
-                AlbumArtView(id: song.id, cornerRadius: 6)
+                ArtworkView(coverId: song.coverId, size: .thumbnail, cornerRadius: 6, placeholderSeed: song.id)
                     .frame(width: 40, height: 40)
 
                 VStack(alignment: .leading, spacing: 2) {

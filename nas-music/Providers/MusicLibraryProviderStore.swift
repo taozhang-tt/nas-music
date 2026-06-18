@@ -40,6 +40,7 @@ final class MusicLibraryProviderStore: ObservableObject {
             guard let config = sessionManager.config else {
                 activeProvider = mockProvider
                 isUsingSynology = false
+                ArtworkImageLoader.shared.updateProvider(MockArtworkProvider(), nasIdentifier: "mock")
                 return
             }
             let provider = SynologyAudioStationProvider(config: config)
@@ -48,9 +49,16 @@ final class MusicLibraryProviderStore: ObservableObject {
             }
             activeProvider = provider
             isUsingSynology = true
+
+            let artworkProvider = SynologyArtworkProvider(config: config)
+            artworkProvider.onSessionExpired = { [weak sessionManager] in
+                sessionManager?.clearCredentials()
+            }
+            ArtworkImageLoader.shared.updateProvider(artworkProvider, nasIdentifier: config.id.uuidString)
         case .disconnected, .connecting, .failed:
             activeProvider = mockProvider
             isUsingSynology = false
+            ArtworkImageLoader.shared.updateProvider(MockArtworkProvider(), nasIdentifier: "mock")
         }
     }
 }

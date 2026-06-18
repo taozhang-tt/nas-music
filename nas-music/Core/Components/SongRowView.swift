@@ -13,7 +13,7 @@ struct SongRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            AlbumArtView(id: song.id, cornerRadius: 6)
+            ArtworkView(coverId: song.coverId, size: .thumbnail, cornerRadius: 6, placeholderSeed: song.id)
                 .frame(width: 44, height: 44)
 
             VStack(alignment: .leading, spacing: 2) {

@@ -33,12 +33,14 @@ enum AudioStationMapper {
         let artistName = raw.artist ?? "未知歌手"
         // 用 ASCII Unit Separator 当分隔符——专辑名/歌手名几乎不可能包含这个控制字符，
         // 避免用 "::" 这种常见字符串组合时不同专辑撞出同一个 id。
+        let id = "\(artistName)\u{1F}\(raw.name)"
         return Album(
-            id: "\(artistName)\u{1F}\(raw.name)",
+            id: id,
             title: raw.name,
             artistName: artistName,
             trackCount: raw.songCount,
-            coverId: raw.coverId
+            coverId: raw.coverId,
+            source: .synology(audioStationId: id)
         )
     }
 

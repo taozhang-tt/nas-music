@@ -44,7 +44,7 @@ final class SynologyAudioStationProvider: MusicLibraryProvider {
                 URLQueryItem(name: "library", value: "all"),
                 URLQueryItem(name: "offset", value: String(offset)),
                 URLQueryItem(name: "limit", value: String(limit)),
-                URLQueryItem(name: "additional", value: "song_tag,song_audio,album_tag"),
+                URLQueryItem(name: "additional", value: "song_tag,song_audio,album_tag,cover"),
             ]
         )
         return (response.data?.songs ?? []).map(AudioStationMapper.song)
@@ -57,7 +57,7 @@ final class SynologyAudioStationProvider: MusicLibraryProvider {
                 URLQueryItem(name: "method", value: "list"),
                 URLQueryItem(name: "offset", value: String(offset)),
                 URLQueryItem(name: "limit", value: String(limit)),
-                URLQueryItem(name: "additional", value: "song_count"),
+                URLQueryItem(name: "additional", value: "song_count,cover"),
             ]
         )
         return (response.data?.albums ?? []).map(AudioStationMapper.album)

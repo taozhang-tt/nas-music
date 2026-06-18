@@ -31,6 +31,7 @@ final class MockMusicLibraryProvider: MusicLibraryProvider {
                     albumArtist: artistName,
                     duration: track.1,
                     trackNumber: index + 1,
+                    coverId: albumId,
                     source: .mock(url: "mock://song/\(id)")
                 )
             }
@@ -68,12 +69,16 @@ final class MockMusicLibraryProvider: MusicLibraryProvider {
             ]
         )
 
+        func makeAlbum(id: String, title: String, artistName: String, year: Int, trackCount: Int) -> Album {
+            Album(id: id, title: title, artistName: artistName, year: year, trackCount: trackCount, coverId: id, source: .mock(url: "mock://album/\(id)"))
+        }
+
         albums = [
-            Album(id: "album-novembers-chopin", title: "十一月的肖邦", artistName: "周杰伦", year: 2005, trackCount: novembersChopinSongs.count),
-            Album(id: "album-1989-tv", title: "1989 (Taylor's Version)", artistName: "Taylor Swift", year: 2023, trackCount: nineteenEightyNineSongs.count),
-            Album(id: "album-dark-side-of-the-moon", title: "The Dark Side of the Moon", artistName: "Pink Floyd", year: 1973, trackCount: darkSideOfTheMoonSongs.count),
-            Album(id: "album-rush-of-blood", title: "A Rush of Blood to the Head", artistName: "Coldplay", year: 2002, trackCount: rushOfBloodSongs.count),
-            Album(id: "album-harrys-house", title: "Harry's House", artistName: "Harry Styles", year: 2022, trackCount: harrysHouseSongs.count),
+            makeAlbum(id: "album-novembers-chopin", title: "十一月的肖邦", artistName: "周杰伦", year: 2005, trackCount: novembersChopinSongs.count),
+            makeAlbum(id: "album-1989-tv", title: "1989 (Taylor's Version)", artistName: "Taylor Swift", year: 2023, trackCount: nineteenEightyNineSongs.count),
+            makeAlbum(id: "album-dark-side-of-the-moon", title: "The Dark Side of the Moon", artistName: "Pink Floyd", year: 1973, trackCount: darkSideOfTheMoonSongs.count),
+            makeAlbum(id: "album-rush-of-blood", title: "A Rush of Blood to the Head", artistName: "Coldplay", year: 2002, trackCount: rushOfBloodSongs.count),
+            makeAlbum(id: "album-harrys-house", title: "Harry's House", artistName: "Harry Styles", year: 2022, trackCount: harrysHouseSongs.count),
         ]
 
         songs = novembersChopinSongs + nineteenEightyNineSongs + darkSideOfTheMoonSongs + rushOfBloodSongs + harrysHouseSongs

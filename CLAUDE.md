@@ -25,27 +25,41 @@ nas-music/
   nas_musicApp.swift          组合根：创建 NASSessionManager / MusicLibraryProviderStore /
                                PlaybackManager 等，展示 RootTabView
   Core/
-    Models/                   Song / Album / Artist / Playlist / MusicSource / NASConnectionConfig 等
-    Music/                    MusicLibraryProvider 协议 + MusicLibraryViewState（页面状态枚举）
-    Theme/AppTheme.swift       配色与封面渐变（占位封面用，无真实图片资源，AlbumArtView 暂未接入
-                               Audio Station 的真实封面图）
-    Components/                跨页面复用：AlbumArtView、SongRowView、SongListView、SectionHeaderView
+    Models/                   Song / Album / Artist / Playlist / MusicSource / NASConnectionConfig 等；
+                               Song/Album 的 coverId 只存 Audio Station 封面标识，不存带 _sid 的 URL
+    Music/                    MusicLibraryProvider 协议 + MusicLibraryViewState（页面状态枚举）+
+                               ArtworkProvider 协议（封面数据源抽象）+ ArtworkError
+    Cache/                    封面缓存：ArtworkMemoryCache（NSCache）/ ArtworkDiskCache（actor，
+                               SHA256(nasId+coverId+size) 文件名，500MB 配额 + LRU）/
+                               ArtworkCacheManager（内存→磁盘→网络的统一读写入口）
+    ImageLoading/ArtworkImageLoader.swift   封面加载唯一入口：同 key 请求去重、ImageIO downsample、
+                               失败静默回退；内含 @MainActor ArtworkImageViewModel 给 ArtworkView 用
+    Theme/AppTheme.swift       配色与封面渐变（AlbumArtView 占位封面用的渐变色，没有真实封面或
+                               加载失败时的兜底图）
+    Components/                跨页面复用：AlbumArtView（渐变占位图）、ArtworkView（真正展示封面的
+                               组件，内部接 ArtworkImageLoader，无封面/加载失败时退回 AlbumArtView）、
+                               SongRowView、SongListView、SectionHeaderView
     Extensions/                TimeInterval+Format（mm:ss / 时长文案）
     Session/NASSessionManager.swift   App 级 NAS 登录状态（NASConnectionConfig 存 UserDefaults，
                                sid/synotoken 只进 Keychain）
     Keychain/                  KeychainService（Security.framework 最小封装）+ NASCredentialStore
-    Playback/                  AudioSessionManager（后台音频会话）/ NowPlayingInfoManager（锁屏信息）/
+    Playback/                  AudioSessionManager（后台音频会话）/ NowPlayingInfoManager（锁屏信息，
+                               有 coverId 时异步换成 ArtworkImageLoader 加载的真实封面）/
                                RemoteCommandManager（锁屏远程控制）
     Logging/AppLogger.swift    统一日志出口，sid/synotoken/password 永远 <redacted>
   Providers/                   数据与状态层
-    Mock/MockMusicLibraryProvider.swift   离线样例数据，实现 MusicLibraryProvider
+    Mock/                      MockMusicLibraryProvider（离线样例数据）+ MockArtworkProvider（按
+                               coverId 渲染渐变测试图，Mock 数据和 SwiftUI Preview 共用）
     Synology/                  SynologyAPIClient（HTTP 基础设施 + API Discovery）、
                                SynologyAuthService（DSM 登录/登出）、SynologyAPIError
       AudioStation/            SynologyAudioStationProvider（真实 Audio Station 接入）+
                                AudioStationModels（宽松 Decodable）+ AudioStationMapper +
-                               AudioStationError
+                               AudioStationError + SynologyArtworkProvider（SYNO.AudioStation.Cover
+                               getcover，coverId 为空时不发请求，不打印带 _sid 的完整 URL）
     MusicLibraryProviderStore.swift   按 NASSessionManager.state 在 Mock / Synology provider
-                               之间切换，会话失效时回调 sessionManager.clearCredentials()
+                               之间切换，会话失效时回调 sessionManager.clearCredentials()；同时
+                               把 ArtworkImageLoader.shared 的 provider/nasIdentifier 切到一致的
+                               Mock/Synology 封面源
     PlaybackManager.swift       播放传输状态（队列/进度/随机/循环）。.mock 来源歌曲走 Timer 模拟
                                推进；.synology/.local 来源歌曲先 fetchStreamURL 再用真实 AVPlayer
                                播放，两条腿共用同一套 published 状态
@@ -61,7 +75,8 @@ nas-music/
     Player/                    PlayerView（深色风格全屏播放页，含 loading/error 态）+ MiniPlayerView
     Queue/                     播放队列（从 PlayerView 以 sheet 弹出）
     Downloads/                  下载管理：进度/状态/暂停继续重试
-    Settings/                   NAS 设置：连接表单、登录状态、测试连接、诊断信息
+    Settings/                   NAS 设置：连接表单、登录状态、测试连接、诊断信息、封面缓存管理
+                               （大小/文件数展示 + 清除缓存）
 ```
 
 ### 依赖注入与 MVVM 边界
@@ -75,7 +90,10 @@ nas-music/
   `MockMusicLibraryProvider`。`HomeViewModel`/`LibraryViewModel` 都持有这个 store 而不是某个具体
   provider，并订阅 `$activeProvider` 在切换时自动重新加载，避免页面停留在切换前的数据上。
   `PlaybackManager` 通过 `updateMusicLibraryProvider(_:)` 接收同样的切换通知，用来解析
-  `fetchStreamURL`。
+  `fetchStreamURL`。封面走同样的思路，但没有单独的 store：`MusicLibraryProviderStore.handle(state:)`
+  直接调 `ArtworkImageLoader.shared.updateProvider(_:nasIdentifier:)`，nasIdentifier 用
+  `config.id`（Mock 固定为 `"mock"`）做缓存命名空间隔离，避免不同 NAS 之间 coverId 撞同一个缓存
+  key。`ArtworkView`/`ArtworkImageViewModel` 不持有具体 Provider，只认 `ArtworkImageLoader.shared`。
 - Provider 负责数据/状态（"是什么"），ViewModel 负责该页面的展示逻辑和用户操作转发
   （"怎么显示/怎么响应"），View 只做布局绑定。
 - 需要镜像 `PlaybackManager` 状态的 ViewModel/View 直接用 `@EnvironmentObject` 持有它，或者通过订阅

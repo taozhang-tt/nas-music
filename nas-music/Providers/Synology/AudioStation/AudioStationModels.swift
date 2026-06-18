@@ -131,6 +131,7 @@ struct SynologySong: Decodable {
     private enum AdditionalKeys: String, CodingKey {
         case songTag = "song_tag"
         case songAudio = "song_audio"
+        case cover
     }
     private enum SongTagKeys: String, CodingKey {
         case album, artist, genre, track, disc, year
@@ -147,7 +148,8 @@ struct SynologySong: Decodable {
         let rawPath = flexString(root, .path)
         path = rawPath
         id = flexString(root, .id) ?? rawPath ?? UUID().uuidString
-        coverId = flexString(root, .cover)
+
+        var coverValue = flexString(root, .cover)
 
         let rawTitle = flexString(root, .title)
         title = rawTitle ?? rawPath.map { ($0 as NSString).lastPathComponent } ?? "未知曲目"
@@ -180,8 +182,10 @@ struct SynologySong: Decodable {
                 bitrateValue = flexInt(audio, .bitrate)
                 sampleRateValue = flexInt(audio, .sampleRate)
             }
+            coverValue = coverValue ?? flexString(additional, .cover)
         }
 
+        coverId = coverValue
         artist = artistValue
         album = albumValue
         albumArtist = albumArtistValue

@@ -92,7 +92,7 @@ struct LibraryView: View {
 
     private func albumRow(_ album: Album) -> some View {
         HStack(spacing: 12) {
-            AlbumArtView(id: album.id, cornerRadius: 6)
+            ArtworkView(coverId: album.coverId, size: .medium, cornerRadius: 6, placeholderSeed: album.id)
                 .frame(width: 48, height: 48)
             VStack(alignment: .leading, spacing: 2) {
                 Text(album.title).font(.body)

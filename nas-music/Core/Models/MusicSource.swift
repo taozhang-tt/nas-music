@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum MusicSource: Codable, Equatable {
+enum MusicSource: Codable, Equatable, Hashable {
     case mock(url: String)
     case synology(audioStationId: String)
     case local(fileURL: String)

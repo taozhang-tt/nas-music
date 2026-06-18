@@ -28,7 +28,7 @@ struct PlayerView: View {
                 Spacer(minLength: 0)
 
                 if let song = playbackManager.currentSong {
-                    AlbumArtView(id: song.id, cornerRadius: 16)
+                    ArtworkView(coverId: song.coverId, size: .large, cornerRadius: 16, placeholderSeed: song.id)
                         .frame(width: 280, height: 280)
                         .shadow(color: .black.opacity(0.5), radius: 20, y: 10)
 

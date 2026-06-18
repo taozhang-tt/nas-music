@@ -17,7 +17,7 @@ struct AlbumDetailView: View {
         List {
             Section {
                 VStack(spacing: 12) {
-                    AlbumArtView(id: viewModel.album.id, cornerRadius: 12)
+                    ArtworkView(coverId: viewModel.album.coverId, size: .large, cornerRadius: 12, placeholderSeed: viewModel.album.id)
                         .frame(width: 200, height: 200)
 
                     VStack(spacing: 4) {

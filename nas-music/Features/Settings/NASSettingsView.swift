@@ -24,9 +24,11 @@ struct NASSettingsView: View {
             formSection
             actionsSection
             advancedSection
+            cacheManagementSection
         }
         .navigationTitle("NAS 设置")
         .disabled(viewModel.isBusy)
+        .task { await viewModel.loadArtworkCacheStats() }
     }
 
     private var statusSection: some View {
@@ -158,6 +160,30 @@ struct NASSettingsView: View {
             } message: {
                 Text("地址和用户名会保留，下次需要重新输入密码登录。")
             }
+        }
+    }
+
+    private var cacheManagementSection: some View {
+        Section("缓存管理") {
+            LabeledContent("封面缓存大小", value: viewModel.artworkCacheSizeText)
+            LabeledContent("封面缓存文件数量", value: viewModel.artworkCacheFileCountText)
+
+            if let artworkCacheErrorMessage = viewModel.artworkCacheErrorMessage {
+                Text(artworkCacheErrorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
+            Button(role: .destructive) {
+                viewModel.clearArtworkCache()
+            } label: {
+                if viewModel.isClearingArtworkCache {
+                    ProgressView()
+                } else {
+                    Text("清除封面缓存")
+                }
+            }
+            .disabled(viewModel.isBusy || viewModel.isClearingArtworkCache)
         }
     }
 }
