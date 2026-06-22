@@ -12,13 +12,12 @@ final class PlaybackManagerTests: XCTestCase {
     private func makeSongs(count: Int, duration: TimeInterval = 200) -> [Song] {
         (0..<count).map { index in
             Song(
-                id: UUID(),
+                id: "song-\(index)",
                 title: "Song \(index)",
                 artist: "Artist \(index)",
                 album: "Album",
                 duration: duration,
-                coverURL: nil,
-                streamURL: nil
+                source: .mock(url: "mock://song/\(index)")
             )
         }
     }

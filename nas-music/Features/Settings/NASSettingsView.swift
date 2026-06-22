@@ -7,6 +7,7 @@ import SwiftUI
 
 struct NASSettingsView: View {
     @EnvironmentObject private var playbackManager: PlaybackManager
+    @ObservedObject private var syncService: MusicLibrarySyncService
     @StateObject private var viewModel: NASSettingsViewModel
 
     @AppStorage("nas.settings.allowHTTPLANTesting") private var allowHTTPLANTesting = false
@@ -14,8 +15,11 @@ struct NASSettingsView: View {
 
     @State private var showDeleteConfirmation = false
     @State private var showClearCredentialConfirmation = false
+    @State private var showRebuildIndexConfirmation = false
+    @State private var showClearIndexConfirmation = false
 
-    init(sessionManager: NASSessionManager) {
+    init(sessionManager: NASSessionManager, syncService: MusicLibrarySyncService) {
+        self.syncService = syncService
         _viewModel = StateObject(wrappedValue: NASSettingsViewModel(sessionManager: sessionManager))
     }
 
@@ -25,12 +29,16 @@ struct NASSettingsView: View {
             formSection
             actionsSection
             playbackDebugSection
+            musicLibrarySection
             advancedSection
             cacheManagementSection
         }
         .navigationTitle("NAS 设置")
         .disabled(viewModel.isBusy)
-        .task { await viewModel.loadArtworkCacheStats() }
+        .task {
+            await viewModel.loadArtworkCacheStats()
+            await syncService.refreshLocalStats()
+        }
     }
 
     private var statusSection: some View {
@@ -184,6 +192,91 @@ struct NASSettingsView: View {
                     .font(.caption)
                     .foregroundStyle(playbackManager.playbackError == nil ? Color.secondary : Color.red)
             }
+        }
+    }
+
+    private var musicLibrarySection: some View {
+        Section("音乐库") {
+            if let nasName = syncService.localStats.nasName {
+                LabeledContent("当前 NAS", value: nasName)
+            }
+            LabeledContent("本地歌曲", value: "\(syncService.localStats.songCount)")
+            LabeledContent("本地专辑", value: "\(syncService.localStats.albumCount)")
+            LabeledContent("本地歌手", value: "\(syncService.localStats.artistCount)")
+            LabeledContent("播放列表", value: "\(syncService.localStats.playlistCount)")
+            LabeledContent("数据库大小", value: byteCount(syncService.localStats.databaseSize))
+            LabeledContent("最近同步", value: syncService.localStats.lastSuccessfulSyncAt?.formatted(date: .abbreviated, time: .shortened) ?? "从未同步")
+            LabeledContent("同步状态", value: syncStatusText)
+
+            Button("立即同步") {
+                Task { await syncService.syncLibrary() }
+            }
+            .disabled(viewModel.state != .connected || syncService.isSyncing)
+
+            Button("取消同步") {
+                syncService.cancelSync()
+            }
+            .disabled(!syncService.isSyncing)
+
+            Button("重建音乐库索引") {
+                showRebuildIndexConfirmation = true
+            }
+            .disabled(viewModel.state != .connected || syncService.isSyncing)
+            .confirmationDialog(
+                "确定要重建音乐库索引吗？",
+                isPresented: $showRebuildIndexConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("重建索引", role: .destructive) {
+                    Task { await syncService.rebuildLibrary() }
+                }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("只会重建当前 NAS 的本地音乐索引，不会删除登录凭证、NAS 配置或封面缓存。")
+            }
+
+            Button("清除本地音乐库索引", role: .destructive) {
+                showClearIndexConfirmation = true
+            }
+            .disabled(syncService.isSyncing)
+            .confirmationDialog(
+                "确定要清除本地音乐库索引吗？",
+                isPresented: $showClearIndexConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("清除索引", role: .destructive) {
+                    Task { await syncService.clearLocalIndex() }
+                }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("只会清除当前 NAS 的歌曲、专辑、歌手和播放列表索引。")
+            }
+        }
+    }
+
+    private func byteCount(_ value: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: value, countStyle: .file)
+    }
+
+    private var syncStatusText: String {
+        switch syncService.status {
+        case .idle:
+            return "空闲"
+        case .preparing:
+            return "准备同步"
+        case .syncing(let current, let total, _):
+            if let total { return "\(current)/\(total) 首" }
+            return "已同步 \(current) 首"
+        case .rebuildingAlbums:
+            return "正在生成专辑索引"
+        case .rebuildingArtists:
+            return "正在生成歌手索引"
+        case .completed(let date, let songCount, let albumCount, let artistCount):
+            return "\(songCount) 首 · \(albumCount) 张 · \(artistCount) 位 · \(date.formatted(date: .abbreviated, time: .shortened))"
+        case .cancelled:
+            return "已取消"
+        case .failed(let message):
+            return message
         }
     }
 

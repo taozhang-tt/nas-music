@@ -35,29 +35,29 @@ final class MusicLibraryProviderStore: ObservableObject {
     var lastConnectedAt: Date? { sessionManager.config?.lastConnectedAt }
 
     private func handle(state: NASConnectionState) {
+        guard let config = sessionManager.config else {
+            activeProvider = mockProvider
+            isUsingSynology = false
+            ArtworkImageLoader.shared.updateProvider(MockArtworkProvider(), nasIdentifier: "mock")
+            return
+        }
+
+        let provider = SynologyAudioStationProvider(config: config)
+        provider.onSessionExpired = { [weak sessionManager] in
+            sessionManager?.clearCredentials()
+        }
+        let appService = AppMusicLibraryService(sessionManager: sessionManager, remoteProvider: provider, mockProvider: mockProvider)
+        activeProvider = AppMusicLibraryProvider(service: appService)
+        isUsingSynology = true
+
         switch state {
         case .connected:
-            guard let config = sessionManager.config else {
-                activeProvider = mockProvider
-                isUsingSynology = false
-                ArtworkImageLoader.shared.updateProvider(MockArtworkProvider(), nasIdentifier: "mock")
-                return
-            }
-            let provider = SynologyAudioStationProvider(config: config)
-            provider.onSessionExpired = { [weak sessionManager] in
-                sessionManager?.clearCredentials()
-            }
-            activeProvider = provider
-            isUsingSynology = true
-
             let artworkProvider = SynologyArtworkProvider(config: config)
             artworkProvider.onSessionExpired = { [weak sessionManager] in
                 sessionManager?.clearCredentials()
             }
             ArtworkImageLoader.shared.updateProvider(artworkProvider, nasIdentifier: config.id.uuidString)
         case .disconnected, .connecting, .failed:
-            activeProvider = mockProvider
-            isUsingSynology = false
             ArtworkImageLoader.shared.updateProvider(MockArtworkProvider(), nasIdentifier: "mock")
         }
     }
