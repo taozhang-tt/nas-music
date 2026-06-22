@@ -45,12 +45,20 @@ struct PlayerView: View {
                         .foregroundStyle(.white.opacity(0.6))
                 }
 
-                if let playbackError = playbackManager.playbackError {
-                    Text(playbackError)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                        .multilineTextAlignment(.center)
-                        .onTapGesture { playbackManager.dismissPlaybackError() }
+                if let statusText = playbackManager.statusText {
+                    VStack(spacing: 8) {
+                        Text(statusText)
+                            .font(.caption)
+                            .foregroundStyle(playbackManager.playbackError == nil ? Color.white.opacity(0.65) : Color.red)
+                            .multilineTextAlignment(.center)
+                        if playbackManager.playbackError != nil {
+                            Button("重试") {
+                                playbackManager.retryCurrentSong()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                        }
+                    }
                 }
 
                 Spacer(minLength: 0)
@@ -135,6 +143,11 @@ struct PlayerView: View {
                 playbackManager.toggle()
             } label: {
                 if playbackManager.isLoadingStream {
+                    ProgressView()
+                        .tint(.white)
+                        .scaleEffect(1.6)
+                        .frame(width: 64, height: 64)
+                } else if case .buffering = playbackManager.playbackState {
                     ProgressView()
                         .tint(.white)
                         .scaleEffect(1.6)

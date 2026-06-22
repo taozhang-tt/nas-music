@@ -2,11 +2,7 @@
 //  AudioSessionManager.swift
 //  nas-music
 //
-//  配置 AVAudioSession 以支持后台播放/锁屏控制。当前播放内核仍是 PlaybackManager
-//  里的 Timer 模拟进度（没有真实音频流），但 iOS 只在音频会话“真正渲染音频”时才会
-//  豁免后台挂起；因此这里额外跑一个静音的 AVAudioEngine 循环，让 App 在切到后台后
-//  仍被系统视为“正在播放音频”，从而保证 Timer 和 Now Playing 信息能继续推进。等接入
-//  真实音频流后，这个静音引擎可以被真实的解码输出取代。
+//  配置 AVAudioSession 以支持真实 AVPlayer 播放、后台音频和锁屏控制。
 //
 
 import AVFoundation
@@ -17,62 +13,97 @@ final class AudioSessionManager {
     private static let logger = Logger(subsystem: "zero-tt.top.nas-music", category: "AudioSession")
 
     private let session = AVAudioSession.sharedInstance()
-    private let engine = AVAudioEngine()
-    private let playerNode = AVAudioPlayerNode()
-
     private var isSessionActivated = false
-    private var isEngineConfigured = false
+    private var observers: [NSObjectProtocol] = []
 
-    func resume() {
-        activateSessionIfNeeded()
-        configureEngineIfNeeded()
+    var onInterruptionBegan: (() -> Void)?
+    var onInterruptionEnded: ((Bool) -> Void)?
 
-        guard !engine.isRunning else { return }
-        do {
-            try engine.start()
-            playerNode.play()
-        } catch {
-            Self.logger.error("启动静音播放引擎失败: \(error.localizedDescription, privacy: .public)")
-        }
+    init() {
+        observeNotifications()
     }
 
-    func suspend() {
-        guard engine.isRunning else { return }
-        playerNode.pause()
-        engine.pause()
+    deinit {
+        observers.forEach(NotificationCenter.default.removeObserver)
     }
 
-    private func activateSessionIfNeeded() {
-        guard !isSessionActivated else { return }
+    func prepareForPlayback() throws {
         do {
             try session.setCategory(.playback, mode: .default)
             try session.setActive(true)
             isSessionActivated = true
+            logCurrentConfiguration(prefix: "prepared")
         } catch {
             Self.logger.error("AVAudioSession 激活失败: \(error.localizedDescription, privacy: .public)")
+            throw error
         }
     }
 
-    /// 用一段全零的 PCM buffer 循环播放来产生“静音音频”，详见文件头注释。
-    private func configureEngineIfNeeded() {
-        guard !isEngineConfigured else { return }
-        isEngineConfigured = true
-
-        let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
-        engine.attach(playerNode)
-        engine.connect(playerNode, to: engine.mainMixerNode, format: format)
-        engine.mainMixerNode.outputVolume = 0
-
-        let frameCount = AVAudioFrameCount(format.sampleRate * 0.5)
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else { return }
-        buffer.frameLength = frameCount
-        if let channelData = buffer.floatChannelData {
-            for channel in 0..<Int(format.channelCount) {
-                memset(channelData[channel], 0, Int(frameCount) * MemoryLayout<Float>.size)
-            }
+    func suspend() {
+        guard isSessionActivated else { return }
+        do {
+            try session.setActive(false, options: .notifyOthersOnDeactivation)
+            isSessionActivated = false
+            logCurrentConfiguration(prefix: "suspended")
+        } catch {
+            Self.logger.error("AVAudioSession 停用失败: \(error.localizedDescription, privacy: .public)")
         }
+    }
 
-        engine.prepare()
-        playerNode.scheduleBuffer(buffer, at: nil, options: .loops)
+    func logCurrentConfiguration(prefix: String) {
+        let route = session.currentRoute.outputs
+            .map { "\($0.portType.rawValue):\($0.portName)" }
+            .joined(separator: ",")
+        Self.logger.debug("AudioSession \(prefix, privacy: .public) category=\(self.session.category.rawValue, privacy: .public) mode=\(self.session.mode.rawValue, privacy: .public) otherAudio=\(self.session.isOtherAudioPlaying, privacy: .public) route=\(route, privacy: .public)")
+    }
+
+    private func observeNotifications() {
+        let center = NotificationCenter.default
+        observers.append(center.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: session,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self else { return }
+            Task { @MainActor in
+                self.handleInterruption(notification)
+            }
+        })
+        observers.append(center.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: session,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self else { return }
+            Task { @MainActor in
+                self.handleRouteChange(notification)
+            }
+        })
+    }
+
+    private func handleInterruption(_ notification: Notification) {
+        guard let rawType = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: rawType) else { return }
+
+        switch type {
+        case .began:
+            Self.logger.debug("AudioSession interruption began")
+            onInterruptionBegan?()
+        case .ended:
+            let rawOptions = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+            let shouldResume = AVAudioSession.InterruptionOptions(rawValue: rawOptions).contains(.shouldResume)
+            Self.logger.debug("AudioSession interruption ended shouldResume=\(shouldResume, privacy: .public)")
+            onInterruptionEnded?(shouldResume)
+        @unknown default:
+            Self.logger.debug("AudioSession interruption unknown")
+        }
+        logCurrentConfiguration(prefix: "interruption")
+    }
+
+    private func handleRouteChange(_ notification: Notification) {
+        let rawReason = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt ?? 0
+        let reason = AVAudioSession.RouteChangeReason(rawValue: rawReason)
+        Self.logger.debug("AudioSession route changed reason=\(String(describing: reason), privacy: .public)")
+        logCurrentConfiguration(prefix: "route")
     }
 }

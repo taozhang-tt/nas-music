@@ -22,7 +22,7 @@ struct MiniPlayerView: View {
                     Text(song.title)
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
-                    Text(playbackManager.playbackError ?? (song.artist ?? "未知歌手"))
+                    Text(playbackManager.statusText ?? (song.artist ?? "未知歌手"))
                         .font(.caption)
                         .foregroundStyle(playbackManager.playbackError == nil ? Color.secondary : Color.red)
                         .lineLimit(1)
@@ -34,6 +34,8 @@ struct MiniPlayerView: View {
                     playbackManager.toggle()
                 } label: {
                     if playbackManager.isLoadingStream {
+                        ProgressView()
+                    } else if case .buffering = playbackManager.playbackState {
                         ProgressView()
                     } else {
                         Image(systemName: playbackManager.isPlaying ? "pause.fill" : "play.fill")

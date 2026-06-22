@@ -9,8 +9,11 @@
 //
 
 import Foundation
+import OSLog
 
 final class SynologyAudioStationProvider: MusicLibraryProvider {
+    private static let logger = Logger(subsystem: "zero-tt.top.nas-music", category: "AudioStation")
+
     private let config: NASConnectionConfig
     private let credentialStore: NASCredentialStore
     private var cachedClient: SynologyAPIClient?
@@ -28,6 +31,8 @@ final class SynologyAudioStationProvider: MusicLibraryProvider {
         "SYNO.AudioStation.Song",
         "SYNO.AudioStation.Album",
         "SYNO.AudioStation.Artist",
+        "SYNO.AudioStation.Stream",
+        "SYNO.AudioStation.Download",
         "SYNO.AudioPlayer.Stream",
     ]
 
@@ -89,44 +94,213 @@ final class SynologyAudioStationProvider: MusicLibraryProvider {
         return (response.data?.playlists ?? []).map(AudioStationMapper.playlist)
     }
 
-    /// 优先用 discovery 给的 SYNO.AudioPlayer.Stream path/maxVersion；如果这个 API 本身没在
-    /// discovery 结果里（但 Audio Station 本身是装了的），退回 entry.cgi + version 2。
-    /// Stream 接口本身就是二进制流地址，这里只构造 URL，不发起请求——交给 AVPlayer 去加载。
+    /// 用 discovery 得到的候选 stream/download API 逐个探测，只有确认返回音频/二进制媒体时才
+    /// 交给 AVPlayer。不同 DSM / Audio Station 版本的播放接口差异很大，不能固定猜一个 method。
     func fetchStreamURL(for song: Song) async throws -> URL {
+        try await fetchStreamResource(for: song).url
+    }
+
+    func fetchStreamResource(for song: Song) async throws -> PlaybackStreamResource {
         guard let audioStationId = song.audioStationId else {
             throw AudioStationError.invalidSongId
         }
         let credential = try currentCredential()
         let client = try makeClient()
+        let infos = try await discoverAPIs()
+        var headers: [String: String] = [:]
+        if let synoToken = credential.synoToken {
+            headers["X-SYNO-TOKEN"] = synoToken
+        }
 
-        var path = "/webapi/entry.cgi"
-        var version = 2
-        do {
-            let info = try await apiInfo("SYNO.AudioPlayer.Stream")
-            path = "/webapi/\(info.path)"
-            version = info.maxVersion
-        } catch let error as AudioStationError {
-            if case .apiUnavailable = error {
-                // 用 entry.cgi + version 2 兜底
-            } else {
-                throw error
+        var candidates: [StreamCandidate] = []
+        addCandidate(
+            &candidates,
+            api: "SYNO.AudioStation.Stream",
+            info: infos["SYNO.AudioStation.Stream"],
+            method: "stream",
+            idParameterName: "id",
+            songId: audioStationId,
+            sid: credential.sid
+        )
+        addCandidate(
+            &candidates,
+            api: "SYNO.AudioStation.Download",
+            info: infos["SYNO.AudioStation.Download"],
+            method: "download",
+            idParameterName: "id",
+            songId: audioStationId,
+            sid: credential.sid
+        )
+        addCandidate(
+            &candidates,
+            api: "SYNO.AudioStation.Song",
+            info: infos["SYNO.AudioStation.Song"],
+            method: "stream",
+            idParameterName: "id",
+            songId: audioStationId,
+            sid: credential.sid
+        )
+        addCandidate(
+            &candidates,
+            api: "SYNO.AudioStation.Song",
+            info: infos["SYNO.AudioStation.Song"],
+            method: "download",
+            idParameterName: "id",
+            songId: audioStationId,
+            sid: credential.sid
+        )
+        addCandidate(
+            &candidates,
+            api: "SYNO.AudioPlayer.Stream",
+            info: infos["SYNO.AudioPlayer.Stream"],
+            method: "stream",
+            idParameterName: "id",
+            songId: audioStationId,
+            sid: credential.sid
+        )
+
+        for candidate in candidates {
+            do {
+                let url = try client.makeURL(path: candidate.path, queryItems: candidate.queryItems)
+                if try await probeStreamCandidate(url, headers: headers, label: candidate.label) {
+                    Self.logger.debug("stream candidate selected label=\(candidate.label, privacy: .public) path=\(candidate.path, privacy: .public)")
+                    return PlaybackStreamResource(url: url, headers: headers)
+                }
+            } catch {
+                Self.logger.debug("stream candidate failed label=\(candidate.label, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
             }
         }
 
-        do {
-            return try client.makeURL(
-                path: path,
-                queryItems: [
-                    URLQueryItem(name: "api", value: "SYNO.AudioPlayer.Stream"),
-                    URLQueryItem(name: "version", value: String(version)),
-                    URLQueryItem(name: "method", value: "stream"),
-                    URLQueryItem(name: "id", value: audioStationId),
-                    URLQueryItem(name: "_sid", value: credential.sid),
-                ]
-            )
-        } catch let error as SynologyAPIError {
-            throw AudioStationError.networkError(error)
+        throw AudioStationError.streamURLUnavailable
+    }
+
+    private struct StreamCandidate {
+        let label: String
+        let path: String
+        let queryItems: [URLQueryItem]
+    }
+
+    private func addCandidate(
+        _ candidates: inout [StreamCandidate],
+        api: String,
+        info: SynologyAPIInfo?,
+        method: String,
+        idParameterName: String,
+        songId: String,
+        sid: String
+    ) {
+        guard let info else { return }
+        candidates.append(StreamCandidate(
+            label: "\(api).\(method).\(idParameterName)",
+            path: "/webapi/\(info.path)",
+            queryItems: [
+                URLQueryItem(name: "api", value: api),
+                URLQueryItem(name: "version", value: String(info.maxVersion)),
+                URLQueryItem(name: "method", value: method),
+                URLQueryItem(name: idParameterName, value: songId),
+                URLQueryItem(name: "_sid", value: sid),
+            ]
+        ))
+    }
+
+    private func probeStreamCandidate(_ url: URL, headers: [String: String], label: String) async throws -> Bool {
+        let head = try await streamProbeRequest(url: url, method: "HEAD", headers: headers)
+        guard (200..<300).contains(head.statusCode) else {
+            Self.logger.debug("stream candidate head rejected label=\(label, privacy: .public) status=\(head.statusCode, privacy: .public)")
+            return false
         }
+        if isClearlyPlayable(contentType: head.contentType) {
+            return true
+        }
+        if isClearlyText(contentType: head.contentType) || head.contentType == nil {
+            let get = try await streamProbeRequest(url: url, method: "GET", headers: headers)
+            if let jsonMessage = jsonProbeErrorMessage(from: get.data) {
+                Self.logger.debug("stream candidate json label=\(label, privacy: .public) message=\(jsonMessage, privacy: .public)")
+                return false
+            }
+            return looksLikeAudio(get.data) || !looksLikePrintableText(get.data.prefix(64))
+        }
+        return true
+    }
+
+    private struct StreamProbeResponse {
+        let statusCode: Int
+        let contentType: String?
+        let data: Data
+    }
+
+    private func streamProbeRequest(url: URL, method: String, headers: [String: String]) async throws -> StreamProbeResponse {
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.timeoutInterval = 12
+        for (field, value) in headers {
+            request.setValue(value, forHTTPHeaderField: field)
+        }
+        if method == "GET" {
+            request.setValue("bytes=0-63", forHTTPHeaderField: "Range")
+        }
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw AudioStationError.unsupportedResponse
+        }
+        return StreamProbeResponse(statusCode: http.statusCode, contentType: http.value(forHTTPHeaderField: "Content-Type"), data: data)
+    }
+
+    private func isClearlyPlayable(contentType: String?) -> Bool {
+        let contentType = contentType?.lowercased() ?? ""
+        return contentType.hasPrefix("audio/")
+            || contentType == "application/octet-stream"
+            || contentType == "binary/octet-stream"
+            || contentType.contains("mpeg")
+            || contentType.contains("flac")
+    }
+
+    private func isClearlyText(contentType: String?) -> Bool {
+        let contentType = contentType?.lowercased() ?? ""
+        return contentType.contains("text/")
+            || contentType.contains("json")
+            || contentType.contains("xml")
+    }
+
+    private func looksLikeAudio(_ data: Data) -> Bool {
+        let bytes = Array(data.prefix(16))
+        guard bytes.count >= 2 else { return false }
+        if bytes.count >= 3, bytes[0] == 0x49, bytes[1] == 0x44, bytes[2] == 0x33 { return true }
+        if bytes[0] == 0xFF, (bytes[1] & 0xE0) == 0xE0 { return true }
+        if bytes.count >= 4, bytes[0] == 0x66, bytes[1] == 0x4C, bytes[2] == 0x61, bytes[3] == 0x43 { return true }
+        if bytes.count >= 4, bytes[0] == 0x52, bytes[1] == 0x49, bytes[2] == 0x46, bytes[3] == 0x46 { return true }
+        if bytes.count >= 12, bytes[4] == 0x66, bytes[5] == 0x74, bytes[6] == 0x79, bytes[7] == 0x70 { return true }
+        if bytes.count >= 4, bytes[0] == 0x4F, bytes[1] == 0x67, bytes[2] == 0x67, bytes[3] == 0x53 { return true }
+        return false
+    }
+
+    private func looksLikePrintableText(_ data: Data.SubSequence) -> Bool {
+        let bytes = Array(data)
+        guard !bytes.isEmpty else { return false }
+        let printableCount = bytes.filter { byte in
+            byte == 0x09 || byte == 0x0A || byte == 0x0D || (0x20...0x7E).contains(byte)
+        }.count
+        return Double(printableCount) / Double(bytes.count) > 0.85
+    }
+
+    private func jsonProbeErrorMessage(from data: Data) -> String? {
+        struct ProbeAPIError: Decodable {
+            let code: Int?
+        }
+        struct ProbeAPIResponse: Decodable {
+            let success: Bool?
+            let error: ProbeAPIError?
+        }
+        guard let response = try? JSONDecoder().decode(ProbeAPIResponse.self, from: data) else {
+            return nil
+        }
+        if let code = response.error?.code {
+            return "Synology errorCode=\(code)"
+        }
+        if let success = response.success {
+            return "success=\(success)"
+        }
+        return "JSON response"
     }
 
     // MARK: - 通用 list 请求

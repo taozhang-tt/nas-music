@@ -6,6 +6,7 @@
 import SwiftUI
 
 struct NASSettingsView: View {
+    @EnvironmentObject private var playbackManager: PlaybackManager
     @StateObject private var viewModel: NASSettingsViewModel
 
     @AppStorage("nas.settings.allowHTTPLANTesting") private var allowHTTPLANTesting = false
@@ -23,6 +24,7 @@ struct NASSettingsView: View {
             statusSection
             formSection
             actionsSection
+            playbackDebugSection
             advancedSection
             cacheManagementSection
         }
@@ -159,6 +161,28 @@ struct NASSettingsView: View {
                 Button("取消", role: .cancel) {}
             } message: {
                 Text("地址和用户名会保留，下次需要重新输入密码登录。")
+            }
+        }
+    }
+
+    private var playbackDebugSection: some View {
+        Section("播放诊断") {
+            Button {
+                playbackManager.playLocalTestAudio()
+            } label: {
+                Label("播放本地测试音频", systemImage: "speaker.wave.2.fill")
+            }
+
+            Button {
+                playbackManager.playPublicRemoteTestAudio()
+            } label: {
+                Label("播放公开远程测试音频", systemImage: "network")
+            }
+
+            if let statusText = playbackManager.statusText {
+                Text(statusText)
+                    .font(.caption)
+                    .foregroundStyle(playbackManager.playbackError == nil ? Color.secondary : Color.red)
             }
         }
     }

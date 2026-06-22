@@ -5,6 +5,20 @@
 
 import Foundation
 
+enum PlaybackState: Equatable {
+    case idle
+    case loading
+    case playing
+    case paused
+    case buffering
+    case failed(message: String)
+
+    var errorMessage: String? {
+        if case .failed(let message) = self { return message }
+        return nil
+    }
+}
+
 enum RepeatMode {
     case off
     case all
