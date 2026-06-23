@@ -36,13 +36,13 @@ enum MetadataWritebackError: LocalizedError, Equatable {
         case .unauthorized:
             return "NASMusic Agent 认证失败，请检查 API Token。"
         case .songNotFound:
-            return "Agent 未找到这首歌曲对应的音乐文件。"
+            return "Agent 尚未建立这首歌的文件索引，请先同步音乐库。"
         case .pathNotAllowed:
-            return "Agent 拒绝访问该音乐文件路径。"
+            return "Agent 拒绝访问该音乐文件路径，请检查索引和 musicRoots 配置。"
         case .permissionDenied:
             return "NASMusic Agent 没有修改该音乐文件的权限。"
         case .unsupportedFormat:
-            return "当前音乐格式暂不支持安全修改标签。"
+            return "当前格式暂不支持安全修改标签。"
         case .fileChanged:
             return "该音乐文件已被其他用户修改，请重新加载后再保存。"
         case .fileLocked:

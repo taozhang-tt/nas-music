@@ -28,7 +28,7 @@ struct NASMetadataEditorView: View {
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("写入 NAS 文件") { showWriteConfirmation = true }
-                    .disabled(viewModel.remote == nil || viewModel.isWriting)
+                    .disabled(!viewModel.canWrite)
             }
         }
         .task { await viewModel.load() }
@@ -59,6 +59,8 @@ struct NASMetadataEditorView: View {
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
+                Button("重新读取") { Task { await viewModel.load() } }
+                    .disabled(viewModel.isLoading || viewModel.isWriting)
             } else {
                 Button("重新加载") { Task { await viewModel.load() } }
             }
@@ -79,8 +81,9 @@ struct NASMetadataEditorView: View {
             TextField("碟片编号", text: $viewModel.discNumber)
                 .keyboardType(.numberPad)
             Toggle("转换为简体", isOn: $viewModel.convertToSimplified)
-            Toggle("创建写入前备份", isOn: $viewModel.createBackup)
+            LabeledContent("写入前备份", value: "自动创建")
         }
+        .disabled(!viewModel.isEditable)
     }
 
     private var previewSection: some View {
@@ -88,7 +91,7 @@ struct NASMetadataEditorView: View {
             Button("生成预览") {
                 Task { await viewModel.generatePreview() }
             }
-            .disabled(viewModel.remote == nil)
+            .disabled(!viewModel.canGeneratePreview)
 
             if let preview = viewModel.preview {
                 MetadataDiffView(before: preview.before, after: preview.after)
@@ -104,6 +107,11 @@ struct NASMetadataEditorView: View {
     private var statusSection: some View {
         Section {
             MetadataWriteProgressView(isWriting: viewModel.isWriting, message: viewModel.successMessage)
+            if let message = viewModel.informationalMessage {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             if let message = viewModel.errorMessage {
                 Text(message)
                     .font(.caption)

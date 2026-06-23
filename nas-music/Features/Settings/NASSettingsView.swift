@@ -334,10 +334,12 @@ struct NASSettingsView: View {
             }
             .disabled(!agentEnabled)
 
-            Button("编辑 Agent 测试 FLAC") {
+            #if DEBUG
+            Button("诊断：编辑测试 FLAC") {
                 isTestMetadataEditorPresented = true
             }
             .disabled(!agentEnabled)
+            #endif
         }
     }
 
