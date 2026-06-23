@@ -109,6 +109,17 @@ Direct iOS app integration:
 1. Start the agent on the NAS with `listenAddr` set to `0.0.0.0:2302`.
 2. In NASMusic Settings, enable metadata writeback, set the Agent URL to `http://sh.zero-tt.top:2302`, paste the API token, and run the Agent health check.
 3. Use the debug entry "编辑 Agent 测试 FLAC" with a library index entry whose `sourceId` is `test-flac`.
+4. Sync the iOS music library to push real `sourceId -> path` mappings to the Agent.
+5. Use the real-song "编辑 NAS 标签" entry from the library song context menu.
+
+Library index APIs:
+
+```http
+GET /v1/library/index/status
+PUT /v1/library/index
+```
+
+`PUT /v1/library/index` accepts authenticated, controlled `sourceId -> path` mappings. The Agent validates every path against `musicRoots` and writes `library-index.json` atomically; writeback APIs still never accept arbitrary paths from the iOS app.
 
 Simulator tunnel fallback:
 

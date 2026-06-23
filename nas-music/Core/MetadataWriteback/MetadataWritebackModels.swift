@@ -93,6 +93,31 @@ struct MetadataAgentHealth: Codable, Equatable {
     let backupDirectoryWritable: Bool?
 }
 
+struct MetadataLibraryIndexSong: Codable, Equatable {
+    let sourceId: String
+    let path: String
+    let title: String?
+    let artist: String?
+    let album: String?
+}
+
+struct MetadataLibraryIndexUpdateResult: Codable, Equatable {
+    let acceptedCount: Int
+    let rejectedCount: Int
+    let rejected: [MetadataLibraryIndexRejectedSong]?
+    let songCount: Int
+}
+
+struct MetadataLibraryIndexRejectedSong: Codable, Equatable {
+    let sourceId: String
+    let reason: String
+}
+
+struct MetadataLibraryIndexStatus: Codable, Equatable {
+    let songCount: Int
+    let updatedAt: Date?
+}
+
 enum MetadataWriteStatus: String, Codable, Equatable {
     case idle
     case previewing

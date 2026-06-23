@@ -72,7 +72,37 @@ func TestAPIWriteConflictReturns409(t *testing.T) {
 	}
 }
 
+func TestAPIUpdatesLibraryIndex(t *testing.T) {
+	server, root := newTestServerWithRoot(t)
+	audio := filepath.Join(root, "new-song.mp3")
+	if err := os.WriteFile(audio, []byte{0xff, 0xfb, 0x90, 0x64}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	body := bytes.NewBufferString(`{"songs":[{"sourceId":"new-id","path":"` + audio + `"}]}`)
+	request := httptest.NewRequest(http.MethodPut, "/v1/library/index", body)
+	request.Header.Set("Authorization", "Bearer token")
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/v1/songs/new-id/metadata", nil)
+	request.Header.Set("Authorization", "Bearer token")
+	response = httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("metadata status = %d, body=%s", response.Code, response.Body.String())
+	}
+}
+
 func newTestServer(t *testing.T) *Server {
+	server, _ := newTestServerWithRoot(t)
+	return server
+}
+
+func newTestServerWithRoot(t *testing.T) (*Server, string) {
 	t.Helper()
 	root := t.TempDir()
 	audio := filepath.Join(root, "song.mp3")
@@ -97,5 +127,5 @@ func newTestServer(t *testing.T) *Server {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return New(config.Config{APIToken: "token"}, lib, wb)
+	return New(config.Config{APIToken: "token"}, lib, wb), root
 }

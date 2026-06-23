@@ -30,6 +30,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/songs/{sourceId}/metadata/preview", s.withAuth(s.previewMetadata))
 	mux.HandleFunc("PATCH /v1/songs/{sourceId}/metadata", s.withAuth(s.writeMetadata))
 	mux.HandleFunc("POST /v1/operations/{operationId}/rollback", s.withAuth(s.rollback))
+	mux.HandleFunc("GET /v1/library/index/status", s.withAuth(s.libraryIndexStatus))
+	mux.HandleFunc("PUT /v1/library/index", s.withAuth(s.updateLibraryIndex))
 	return mux
 }
 
@@ -116,6 +118,26 @@ func (s *Server) rollback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
+}
+
+func (s *Server) libraryIndexStatus(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, s.library.Status())
+}
+
+func (s *Server) updateLibraryIndex(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Songs []library.IndexSong `json:"songs"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErrorResponse(w, http.StatusBadRequest, "invalidJSON", "invalid json")
+		return
+	}
+	result, err := s.library.Update(req.Songs)
+	if err != nil {
+		writeErrorResponse(w, http.StatusInternalServerError, "indexUpdateFailed", "failed to update library index")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *Server) withAuth(next http.HandlerFunc) http.HandlerFunc {

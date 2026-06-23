@@ -7,6 +7,8 @@ import Foundation
 
 protocol MetadataWritebackProvider {
     func health() async throws -> MetadataAgentHealth
+    func libraryIndexStatus() async throws -> MetadataLibraryIndexStatus
+    func updateLibraryIndex(songs: [MetadataLibraryIndexSong]) async throws -> MetadataLibraryIndexUpdateResult
     func readRemoteMetadata(for song: Song) async throws -> RemoteAudioMetadataEnvelope
     func previewUpdate(song: Song, patch: AudioMetadataPatch) async throws -> MetadataUpdatePreview
     func previewUpdate(song: Song, patch: AudioMetadataPatch, convertToSimplified: Bool, fields: [String]) async throws -> MetadataUpdatePreview

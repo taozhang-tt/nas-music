@@ -301,6 +301,12 @@ struct NASSettingsView: View {
                 if let writable = health.backupDirectoryWritable {
                     LabeledContent("备份目录", value: writable ? "可写" : "不可写")
                 }
+                if let indexStatus = metadataWritebackService.libraryIndexStatus {
+                    LabeledContent("索引歌曲", value: "\(indexStatus.songCount)")
+                    if let updatedAt = indexStatus.updatedAt {
+                        LabeledContent("索引更新", value: updatedAt.formatted(date: .abbreviated, time: .shortened))
+                    }
+                }
             }
 
             if let message = metadataWritebackService.statusMessage {

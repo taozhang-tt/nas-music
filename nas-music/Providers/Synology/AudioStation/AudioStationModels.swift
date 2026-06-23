@@ -124,6 +124,9 @@ struct SynologySong: Decodable {
 
     private enum RootKeys: String, CodingKey {
         case id, title, artist, album, path, cover, additional
+        case filePath = "file_path"
+        case filepath
+        case filename
         case albumArtist = "album_artist"
         case duration
         case size
@@ -131,7 +134,18 @@ struct SynologySong: Decodable {
     private enum AdditionalKeys: String, CodingKey {
         case songTag = "song_tag"
         case songAudio = "song_audio"
+        case songPath = "song_path"
+        case path
+        case filePath = "file_path"
+        case filepath
+        case filename
         case cover
+    }
+    private enum SongPathKeys: String, CodingKey {
+        case path
+        case filePath = "file_path"
+        case filepath
+        case filename
     }
     private enum SongTagKeys: String, CodingKey {
         case album, artist, genre, track, disc, year
@@ -145,16 +159,14 @@ struct SynologySong: Decodable {
     init(from decoder: Decoder) throws {
         let root = try decoder.container(keyedBy: RootKeys.self)
 
-        let rawPath = flexString(root, .path)
-        path = rawPath
+        var rawPath = flexString(root, .path)
+            ?? flexString(root, .filePath)
+            ?? flexString(root, .filepath)
+            ?? flexString(root, .filename)
         id = flexString(root, .id) ?? rawPath ?? UUID().uuidString
 
         var coverValue = flexString(root, .cover)
-
         let rawTitle = flexString(root, .title)
-        title = rawTitle ?? rawPath.map { ($0 as NSString).lastPathComponent } ?? "未知曲目"
-        let pathExtension = rawPath.map { ($0 as NSString).pathExtension }
-        fileExtension = (pathExtension?.isEmpty ?? true) ? nil : pathExtension
 
         var artistValue = flexString(root, .artist)
         var albumValue = flexString(root, .album)
@@ -182,9 +194,25 @@ struct SynologySong: Decodable {
                 bitrateValue = flexInt(audio, .bitrate)
                 sampleRateValue = flexInt(audio, .sampleRate)
             }
+            if let songPath = try? additional.nestedContainer(keyedBy: SongPathKeys.self, forKey: .songPath) {
+                rawPath = rawPath
+                    ?? flexString(songPath, .path)
+                    ?? flexString(songPath, .filePath)
+                    ?? flexString(songPath, .filepath)
+                    ?? flexString(songPath, .filename)
+            }
+            rawPath = rawPath
+                ?? flexString(additional, .path)
+                ?? flexString(additional, .filePath)
+                ?? flexString(additional, .filepath)
+                ?? flexString(additional, .filename)
             coverValue = coverValue ?? flexString(additional, .cover)
         }
 
+        path = rawPath
+        title = rawTitle ?? rawPath.map { ($0 as NSString).lastPathComponent } ?? "未知曲目"
+        let pathExtension = rawPath.map { ($0 as NSString).pathExtension }
+        fileExtension = (pathExtension?.isEmpty ?? true) ? nil : pathExtension
         coverId = coverValue
         artist = artistValue
         album = albumValue

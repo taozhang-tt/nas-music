@@ -55,6 +55,7 @@ extension SongRecord {
             sampleRate: sampleRate,
             fileSize: fileSize,
             coverId: coverId,
+            path: path,
             source: .synology(audioStationId: sourceId)
         )
     }
@@ -90,7 +91,7 @@ extension Song {
             sampleRate: sampleRate,
             fileSize: fileSize,
             coverId: coverId,
-            path: nil,
+            path: path,
             createdAt: syncTime,
             updatedAt: syncTime,
             lastSeenAt: syncTime,

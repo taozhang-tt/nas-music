@@ -29,6 +29,7 @@ final class MusicLibrarySyncService: ObservableObject {
     private let playlistRepository: PlaylistRepositoryProtocol
     private let syncStateRepository: SyncStateRepositoryProtocol
     private let database: DatabaseManager
+    private let metadataWritebackService: MetadataWritebackService?
     private var syncTask: Task<Void, Never>?
 
     init(
@@ -38,7 +39,8 @@ final class MusicLibrarySyncService: ObservableObject {
         artistRepository: ArtistRepositoryProtocol = ArtistRepository(),
         playlistRepository: PlaylistRepositoryProtocol = PlaylistRepository(),
         syncStateRepository: SyncStateRepositoryProtocol = SyncStateRepository(),
-        database: DatabaseManager = .shared
+        database: DatabaseManager = .shared,
+        metadataWritebackService: MetadataWritebackService? = nil
     ) {
         self.sessionManager = sessionManager
         self.songRepository = songRepository
@@ -47,6 +49,7 @@ final class MusicLibrarySyncService: ObservableObject {
         self.playlistRepository = playlistRepository
         self.syncStateRepository = syncStateRepository
         self.database = database
+        self.metadataWritebackService = metadataWritebackService
     }
 
     var isSyncing: Bool {
@@ -171,6 +174,8 @@ final class MusicLibrarySyncService: ObservableObject {
                 }
                 try Task.checkCancellation()
                 try await songRepository.upsert(songs: songs, nasId: nasId, syncTime: syncStartedAt)
+                AppLogger.logAudioStationPathProbe(total: songs.count, pathCount: songs.filter { $0.path?.isEmpty == false }.count)
+                await metadataWritebackService?.syncLibraryIndex(songs: songs)
                 totalSynced += songs.count
                 offset += songs.count
                 if songs.count < pageSize {

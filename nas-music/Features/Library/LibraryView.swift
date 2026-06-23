@@ -117,7 +117,7 @@ struct LibraryView: View {
                             } label: {
                                 Label("编辑 NAS 标签", systemImage: "tag")
                             }
-                            .disabled(song.audioStationId == nil)
+                            .disabled(song.audioStationId == nil || metadataWritebackService.currentConfig?.isEnabled != true)
                         }
                         .onAppear { viewModel.loadMoreSongsIfNeeded(currentItem: song) }
                 }

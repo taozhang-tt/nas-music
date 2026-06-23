@@ -54,6 +54,18 @@ enum AppLogger {
         #endif
     }
 
+    static func logAudioStationPathProbe(total: Int, pathCount: Int) {
+        #if DEBUG
+        network.debug("audiostation path probe total=\(total, privacy: .public) pathCount=\(pathCount, privacy: .public)")
+        #endif
+    }
+
+    static func logMetadataIndexSync(total: Int, withPath: Int, accepted: Int, rejected: Int, songCount: Int) {
+        #if DEBUG
+        network.debug("agent index sync total=\(total, privacy: .public) withPath=\(withPath, privacy: .public) accepted=\(accepted, privacy: .public) rejected=\(rejected, privacy: .public) songCount=\(songCount, privacy: .public)")
+        #endif
+    }
+
     private static func isSensitive(_ key: String) -> Bool {
         sensitiveKeys.contains(key.lowercased())
     }

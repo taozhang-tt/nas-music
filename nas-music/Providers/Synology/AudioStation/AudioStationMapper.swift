@@ -25,6 +25,7 @@ enum AudioStationMapper {
             sampleRate: raw.sampleRate,
             fileSize: raw.fileSize,
             coverId: raw.coverId,
+            path: raw.path,
             source: .synology(audioStationId: raw.id)
         )
     }

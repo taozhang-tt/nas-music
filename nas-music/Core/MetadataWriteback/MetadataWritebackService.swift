@@ -9,6 +9,7 @@ import Combine
 @MainActor
 final class MetadataWritebackService: ObservableObject {
     @Published private(set) var health: MetadataAgentHealth?
+    @Published private(set) var libraryIndexStatus: MetadataLibraryIndexStatus?
     @Published private(set) var statusMessage: String?
     @Published private(set) var errorMessage: String?
 
@@ -47,11 +48,14 @@ final class MetadataWritebackService: ObservableObject {
 
     func loadHealth() async {
         do {
-            health = try await provider().health()
+            let provider = try provider()
+            health = try await provider.health()
+            libraryIndexStatus = try? await provider.libraryIndexStatus()
             statusMessage = health?.status == "ok" ? "Agent 已连接" : "Agent 状态异常"
             errorMessage = nil
         } catch {
             health = nil
+            libraryIndexStatus = nil
             errorMessage = Self.message(for: error)
         }
     }
@@ -65,6 +69,43 @@ final class MetadataWritebackService: ObservableObject {
             throw MetadataWritebackError.agentNotConfigured
         }
         return NASAgentMetadataWritebackProvider(baseURL: config.baseURL, apiToken: token)
+    }
+
+    func syncLibraryIndex(songs: [Song]) async {
+        let indexSongs = songs.compactMap { song -> MetadataLibraryIndexSong? in
+            guard let sourceId = song.audioStationId,
+                  let path = song.path,
+                  !path.isEmpty else { return nil }
+            return MetadataLibraryIndexSong(
+                sourceId: sourceId,
+                path: path,
+                title: song.title,
+                artist: song.artist,
+                album: song.album
+            )
+        }
+        guard !indexSongs.isEmpty else { return }
+        do {
+            let result = try await provider().updateLibraryIndex(songs: indexSongs)
+            AppLogger.logMetadataIndexSync(
+                total: songs.count,
+                withPath: indexSongs.count,
+                accepted: result.acceptedCount,
+                rejected: result.rejectedCount,
+                songCount: result.songCount
+            )
+            libraryIndexStatus = try? await provider().libraryIndexStatus()
+            if result.rejectedCount > 0 {
+                statusMessage = "Agent 索引已同步 \(result.acceptedCount) 首，拒绝 \(result.rejectedCount) 首"
+            } else {
+                statusMessage = "Agent 索引已同步 \(result.acceptedCount) 首"
+            }
+            errorMessage = nil
+        } catch MetadataWritebackError.agentNotConfigured {
+            return
+        } catch {
+            errorMessage = Self.message(for: error)
+        }
     }
 
     func recordWrite(
@@ -100,4 +141,3 @@ final class MetadataWritebackService: ObservableObject {
         (error as? LocalizedError)?.errorDescription ?? "Agent 操作失败，请稍后重试。"
     }
 }
-

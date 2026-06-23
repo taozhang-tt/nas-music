@@ -28,8 +28,12 @@ struct nas_musicApp: App {
     init() {
         let sessionManager = NASSessionManager()
         _nasSessionManager = StateObject(wrappedValue: sessionManager)
-        _musicLibrarySyncService = StateObject(wrappedValue: MusicLibrarySyncService(sessionManager: sessionManager))
-        _metadataWritebackService = StateObject(wrappedValue: MetadataWritebackService(sessionManager: sessionManager))
+        let metadataWritebackService = MetadataWritebackService(sessionManager: sessionManager)
+        _metadataWritebackService = StateObject(wrappedValue: metadataWritebackService)
+        _musicLibrarySyncService = StateObject(wrappedValue: MusicLibrarySyncService(
+            sessionManager: sessionManager,
+            metadataWritebackService: metadataWritebackService
+        ))
 
         let store = MusicLibraryProviderStore(sessionManager: sessionManager)
         _providerStore = StateObject(wrappedValue: store)

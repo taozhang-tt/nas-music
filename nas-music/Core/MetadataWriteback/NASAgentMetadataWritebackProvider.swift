@@ -28,6 +28,15 @@ final class NASAgentMetadataWritebackProvider: MetadataWritebackProvider {
         try await send(path: "/v1/health", method: "GET", body: Optional<String>.none)
     }
 
+    func libraryIndexStatus() async throws -> MetadataLibraryIndexStatus {
+        try await send(path: "/v1/library/index/status", method: "GET", body: Optional<String>.none)
+    }
+
+    func updateLibraryIndex(songs: [MetadataLibraryIndexSong]) async throws -> MetadataLibraryIndexUpdateResult {
+        let body = LibraryIndexUpdateRequest(songs: songs)
+        return try await send(path: "/v1/library/index", method: "PUT", body: body)
+    }
+
     func readRemoteMetadata(for song: Song) async throws -> RemoteAudioMetadataEnvelope {
         let sourceId = try sourceId(for: song)
         return try await send(path: "/v1/songs/\(sourceId)/metadata", method: "GET", body: Optional<String>.none)
@@ -125,6 +134,10 @@ final class NASAgentMetadataWritebackProvider: MetadataWritebackProvider {
 private struct AgentErrorResponse: Decodable {
     let error: String
     let message: String
+}
+
+private struct LibraryIndexUpdateRequest: Encodable {
+    let songs: [MetadataLibraryIndexSong]
 }
 
 private struct PreviewRequest: Encodable {

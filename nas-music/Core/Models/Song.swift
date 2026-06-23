@@ -25,6 +25,7 @@ struct Song: Identifiable, Equatable, Codable {
     let sampleRate: Int?
     let fileSize: Int64?
     let coverId: String?
+    let path: String?
     let source: MusicSource
 
     init(
@@ -43,6 +44,7 @@ struct Song: Identifiable, Equatable, Codable {
         sampleRate: Int? = nil,
         fileSize: Int64? = nil,
         coverId: String? = nil,
+        path: String? = nil,
         source: MusicSource
     ) {
         self.id = id
@@ -60,6 +62,7 @@ struct Song: Identifiable, Equatable, Codable {
         self.sampleRate = sampleRate
         self.fileSize = fileSize
         self.coverId = coverId
+        self.path = path
         self.source = source
     }
 }

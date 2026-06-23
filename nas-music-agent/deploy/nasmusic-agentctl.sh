@@ -78,13 +78,15 @@ install_service() {
 	load_token
 	mkdir -p "$BIN_DIR" "$ETC_DIR" "$DATA_DIR" "$LOG_DIR" "$RUN_DIR" "$BACKUP_DIR"
 
-	if [ ! -x "$AGENT_BIN" ]; then
-		if [ ! -f "$SOURCE_BIN" ]; then
-			echo "Agent binary not found: $SOURCE_BIN" >&2
-			exit 1
-		fi
-		cp "$SOURCE_BIN" "$AGENT_BIN"
-		chmod +x "$AGENT_BIN"
+	if [ ! -f "$SOURCE_BIN" ] && [ ! -x "$AGENT_BIN" ]; then
+		echo "Agent binary not found: $SOURCE_BIN" >&2
+		exit 1
+	fi
+	if [ -f "$SOURCE_BIN" ] && { [ ! -x "$AGENT_BIN" ] || ! cmp -s "$SOURCE_BIN" "$AGENT_BIN"; }; then
+		tmp_bin="$BIN_DIR/.nasmusic-agent.$$"
+		cp "$SOURCE_BIN" "$tmp_bin"
+		chmod +x "$tmp_bin"
+		mv "$tmp_bin" "$AGENT_BIN"
 	fi
 
 	if [ ! -f "$LIBRARY_INDEX" ]; then
