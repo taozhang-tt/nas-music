@@ -31,6 +31,10 @@ struct SongRecord {
     let updatedAt: Date
     let lastSeenAt: Date
     let isDeleted: Bool
+    let remoteRevision: String?
+    let metadataWriteStatus: MetadataWriteStatus
+    let metadataLastWrittenAt: Date?
+    let metadataIndexStatus: String?
 }
 
 extension SongRecord {
@@ -90,7 +94,11 @@ extension Song {
             createdAt: syncTime,
             updatedAt: syncTime,
             lastSeenAt: syncTime,
-            isDeleted: false
+            isDeleted: false,
+            remoteRevision: nil,
+            metadataWriteStatus: .idle,
+            metadataLastWrittenAt: nil,
+            metadataIndexStatus: nil
         )
     }
 }

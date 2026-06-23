@@ -14,6 +14,8 @@ protocol SongRepositoryProtocol {
     func search(nasId: String, keyword: String, offset: Int, limit: Int) async throws -> [Song]
     func count(nasId: String) async throws -> Int
     func markMissingAsDeleted(nasId: String, lastSeenBefore syncTime: Date) async throws
+    func updateMetadataWriteState(nasId: String, sourceId: String, status: MetadataWriteStatus, remoteRevision: String?, indexStatus: String?, writtenAt: Date?) async throws
+    func updateMetadata(nasId: String, sourceId: String, metadata: RemoteAudioMetadata, revision: String?, indexStatus: String?) async throws
     func clear(nasId: String) async throws
 }
 
@@ -110,6 +112,90 @@ final class SongRepository: SongRepositoryProtocol {
         }.value
     }
 
+    func updateMetadataWriteState(
+        nasId: String,
+        sourceId: String,
+        status: MetadataWriteStatus,
+        remoteRevision: String?,
+        indexStatus: String?,
+        writtenAt: Date?
+    ) async throws {
+        try await Task.detached {
+            try self.database.write { db in
+                let statement = try SQLStatement("""
+                    UPDATE songs
+                    SET metadata_write_status = ?,
+                        remote_revision = COALESCE(?, remote_revision),
+                        metadata_index_status = ?,
+                        metadata_last_written_at = ?,
+                        updated_at = ?
+                    WHERE nas_id = ? AND source_id = ?
+                    """, db: db)
+                try statement.bind(status.rawValue, at: 1)
+                try statement.bind(remoteRevision, at: 2)
+                try statement.bind(indexStatus, at: 3)
+                try statement.bind(writtenAt?.timeIntervalSince1970, at: 4)
+                try statement.bind(Date().timeIntervalSince1970, at: 5)
+                try statement.bind(nasId, at: 6)
+                try statement.bind(sourceId, at: 7)
+                _ = try statement.step()
+            }
+        }.value
+    }
+
+    func updateMetadata(
+        nasId: String,
+        sourceId: String,
+        metadata: RemoteAudioMetadata,
+        revision: String?,
+        indexStatus: String?
+    ) async throws {
+        try await Task.detached {
+            try self.database.write { db in
+                let title = metadata.title ?? ""
+                let statement = try SQLStatement("""
+                    UPDATE songs
+                    SET title = ?,
+                        normalized_title = ?,
+                        artist = ?,
+                        normalized_artist = ?,
+                        album = ?,
+                        normalized_album = ?,
+                        album_artist = ?,
+                        genre = ?,
+                        year = ?,
+                        track_number = ?,
+                        disc_number = ?,
+                        remote_revision = COALESCE(?, remote_revision),
+                        metadata_write_status = ?,
+                        metadata_index_status = ?,
+                        metadata_last_written_at = ?,
+                        updated_at = ?
+                    WHERE nas_id = ? AND source_id = ?
+                    """, db: db)
+                try statement.bind(title, at: 1)
+                try statement.bind(SearchTextNormalizer.normalize(title), at: 2)
+                try statement.bind(metadata.artist, at: 3)
+                try statement.bind(metadata.artist.map(SearchTextNormalizer.normalize), at: 4)
+                try statement.bind(metadata.album, at: 5)
+                try statement.bind(metadata.album.map(SearchTextNormalizer.normalize), at: 6)
+                try statement.bind(metadata.albumArtist, at: 7)
+                try statement.bind(metadata.genre, at: 8)
+                try statement.bind(metadata.year, at: 9)
+                try statement.bind(metadata.trackNumber, at: 10)
+                try statement.bind(metadata.discNumber, at: 11)
+                try statement.bind(revision, at: 12)
+                try statement.bind(MetadataWriteStatus.waitingForIndex.rawValue, at: 13)
+                try statement.bind(indexStatus, at: 14)
+                try statement.bind(Date().timeIntervalSince1970, at: 15)
+                try statement.bind(Date().timeIntervalSince1970, at: 16)
+                try statement.bind(nasId, at: 17)
+                try statement.bind(sourceId, at: 18)
+                _ = try statement.step()
+            }
+        }.value
+    }
+
     func clear(nasId: String) async throws {
         try await Task.detached {
             try self.database.transaction { db in
@@ -141,7 +227,7 @@ final class SongRepository: SongRepositoryProtocol {
     private static let columns = """
         id,nas_id,source_id,title,normalized_title,artist,normalized_artist,album,normalized_album,album_artist,
         duration,track_number,disc_number,year,genre,file_extension,bitrate,sample_rate,file_size,cover_id,path,
-        created_at,updated_at,last_seen_at,is_deleted
+        created_at,updated_at,last_seen_at,is_deleted,remote_revision,metadata_write_status,metadata_last_written_at,metadata_index_status
         """
 
     private static let upsertSQL = """
@@ -229,6 +315,11 @@ final class SongRepository: SongRepositoryProtocol {
             updatedAt: Date(timeIntervalSince1970: statement.double(22) ?? 0),
             lastSeenAt: Date(timeIntervalSince1970: statement.double(23) ?? 0),
             isDeleted: (statement.int(24) ?? 0) != 0
+            ,
+            remoteRevision: statement.string(25),
+            metadataWriteStatus: MetadataWriteStatus(rawValue: statement.string(26) ?? "") ?? .idle,
+            metadataLastWrittenAt: statement.double(27).map(Date.init(timeIntervalSince1970:)),
+            metadataIndexStatus: statement.string(28)
         )
     }
 }

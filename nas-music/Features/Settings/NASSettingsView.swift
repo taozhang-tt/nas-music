@@ -7,7 +7,9 @@ import SwiftUI
 
 struct NASSettingsView: View {
     @EnvironmentObject private var playbackManager: PlaybackManager
+    @ObservedObject private var sessionManager: NASSessionManager
     @ObservedObject private var syncService: MusicLibrarySyncService
+    @ObservedObject private var metadataWritebackService: MetadataWritebackService
     @StateObject private var viewModel: NASSettingsViewModel
 
     @AppStorage("nas.settings.allowHTTPLANTesting") private var allowHTTPLANTesting = false
@@ -17,9 +19,19 @@ struct NASSettingsView: View {
     @State private var showClearCredentialConfirmation = false
     @State private var showRebuildIndexConfirmation = false
     @State private var showClearIndexConfirmation = false
+    @State private var agentBaseURLText = ""
+    @State private var agentTokenText = ""
+    @State private var agentEnabled = false
+    @State private var isTestMetadataEditorPresented = false
 
-    init(sessionManager: NASSessionManager, syncService: MusicLibrarySyncService) {
+    init(
+        sessionManager: NASSessionManager,
+        syncService: MusicLibrarySyncService,
+        metadataWritebackService: MetadataWritebackService
+    ) {
+        self.sessionManager = sessionManager
         self.syncService = syncService
+        self.metadataWritebackService = metadataWritebackService
         _viewModel = StateObject(wrappedValue: NASSettingsViewModel(sessionManager: sessionManager))
     }
 
@@ -30,6 +42,7 @@ struct NASSettingsView: View {
             actionsSection
             playbackDebugSection
             musicLibrarySection
+            metadataAgentSection
             advancedSection
             cacheManagementSection
         }
@@ -38,6 +51,16 @@ struct NASSettingsView: View {
         .task {
             await viewModel.loadArtworkCacheStats()
             await syncService.refreshLocalStats()
+            loadMetadataAgentForm()
+        }
+        .sheet(isPresented: $isTestMetadataEditorPresented) {
+            NavigationStack {
+                NASMetadataEditorView(
+                    song: testAgentSong,
+                    service: metadataWritebackService,
+                    sessionManager: sessionManager
+                )
+            }
         }
     }
 
@@ -252,6 +275,81 @@ struct NASSettingsView: View {
                 Text("只会清除当前 NAS 的歌曲、专辑、歌手和播放列表索引。")
             }
         }
+    }
+
+    private var metadataAgentSection: some View {
+        Section("NASMusic Agent") {
+            Toggle("启用标签写回", isOn: $agentEnabled)
+
+            TextField("Agent 地址（如 http://sh.zero-tt.top:2302）", text: $agentBaseURLText)
+                .keyboardType(.URL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+
+            SecureField("API Token", text: $agentTokenText)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+
+            if let health = metadataWritebackService.health {
+                LabeledContent("连接状态", value: health.status)
+                LabeledContent("版本", value: health.version)
+                LabeledContent("标签写入", value: health.tagWriterAvailable ? "可用" : "不可用")
+                LabeledContent("繁简转换", value: health.openCCAvailable ? "可用" : "不可用")
+                if let writable = health.musicDirectoryWritable {
+                    LabeledContent("音乐目录", value: writable ? "可写" : "不可写")
+                }
+                if let writable = health.backupDirectoryWritable {
+                    LabeledContent("备份目录", value: writable ? "可写" : "不可写")
+                }
+            }
+
+            if let message = metadataWritebackService.statusMessage {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if let message = metadataWritebackService.errorMessage {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
+            Button("保存 Agent 配置") {
+                metadataWritebackService.saveAgentConfig(
+                    baseURLText: agentBaseURLText,
+                    token: agentTokenText.isEmpty ? nil : agentTokenText,
+                    isEnabled: agentEnabled
+                )
+            }
+            .disabled(agentBaseURLText.isEmpty)
+
+            Button("检查 Agent 状态") {
+                Task { await metadataWritebackService.loadHealth() }
+            }
+            .disabled(!agentEnabled)
+
+            Button("编辑 Agent 测试 FLAC") {
+                isTestMetadataEditorPresented = true
+            }
+            .disabled(!agentEnabled)
+        }
+    }
+
+    private var testAgentSong: Song {
+        Song(
+            id: "agent-test-flac",
+            title: "Agent 测试 FLAC",
+            artist: nil,
+            album: nil,
+            source: .synology(audioStationId: "test-flac")
+        )
+    }
+
+    private func loadMetadataAgentForm() {
+        guard let config = metadataWritebackService.currentConfig else { return }
+        agentBaseURLText = config.baseURL.absoluteString
+        agentEnabled = config.isEnabled
+        agentTokenText = ""
     }
 
     private func byteCount(_ value: Int64) -> String {

@@ -1,0 +1,7 @@
+{
+  "listenAddr": "0.0.0.0:2302",
+  "apiToken": "replace-with-a-long-random-token",
+  "musicRoots": ["/volume2/music"],
+  "libraryIndex": "/var/services/homes/admin/nasmusic-agent-test/library-index.json",
+  "backupDir": "/var/services/homes/admin/nasmusic-agent-test/backup"
+}

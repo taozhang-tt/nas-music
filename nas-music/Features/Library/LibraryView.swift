@@ -8,12 +8,22 @@ import SwiftUI
 struct LibraryView: View {
     @StateObject private var viewModel: LibraryViewModel
     @ObservedObject private var syncService: MusicLibrarySyncService
+    @ObservedObject private var metadataWritebackService: MetadataWritebackService
+    @ObservedObject private var sessionManager: NASSessionManager
     @EnvironmentObject private var playbackManager: PlaybackManager
     private let providerStore: MusicLibraryProviderStore
+    @State private var editingSong: Song?
 
-    init(providerStore: MusicLibraryProviderStore, syncService: MusicLibrarySyncService) {
+    init(
+        providerStore: MusicLibraryProviderStore,
+        syncService: MusicLibrarySyncService,
+        metadataWritebackService: MetadataWritebackService,
+        sessionManager: NASSessionManager
+    ) {
         self.providerStore = providerStore
         self.syncService = syncService
+        self.metadataWritebackService = metadataWritebackService
+        self.sessionManager = sessionManager
         _viewModel = StateObject(wrappedValue: LibraryViewModel(providerStore: providerStore))
     }
 
@@ -40,6 +50,11 @@ struct LibraryView: View {
         }
         .navigationDestination(for: Album.self) { album in
             AlbumDetailView(album: album, provider: viewModel.activeProvider)
+        }
+        .sheet(item: $editingSong) { song in
+            NavigationStack {
+                NASMetadataEditorView(song: song, service: metadataWritebackService, sessionManager: sessionManager)
+            }
         }
         .task { await viewModel.load() }
     }
@@ -95,6 +110,14 @@ struct LibraryView: View {
                         .onTapGesture {
                             playbackManager.updatePlaylist(viewModel.filteredSongs, currentIndex: index)
                             playbackManager.play()
+                        }
+                        .contextMenu {
+                            Button {
+                                editingSong = song
+                            } label: {
+                                Label("编辑 NAS 标签", systemImage: "tag")
+                            }
+                            .disabled(song.audioStationId == nil)
                         }
                         .onAppear { viewModel.loadMoreSongsIfNeeded(currentItem: song) }
                 }
@@ -207,7 +230,9 @@ struct LibraryView: View {
     NavigationStack {
         LibraryView(
             providerStore: MusicLibraryProviderStore(sessionManager: sessionManager),
-            syncService: MusicLibrarySyncService(sessionManager: sessionManager)
+            syncService: MusicLibrarySyncService(sessionManager: sessionManager),
+            metadataWritebackService: MetadataWritebackService(sessionManager: sessionManager),
+            sessionManager: sessionManager
         )
     }
     .environmentObject(PlaybackManager())

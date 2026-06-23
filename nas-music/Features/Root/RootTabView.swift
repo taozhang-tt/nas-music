@@ -20,6 +20,7 @@ struct RootTabView: View {
     @ObservedObject var downloadManager: DownloadManager
     @ObservedObject var nasSessionManager: NASSessionManager
     @ObservedObject var musicLibrarySyncService: MusicLibrarySyncService
+    @ObservedObject var metadataWritebackService: MetadataWritebackService
 
     @EnvironmentObject private var playbackManager: PlaybackManager
     @State private var isPlayerPresented = false
@@ -34,7 +35,12 @@ struct RootTabView: View {
             .tag(RootTab.home)
 
             NavigationStack {
-                LibraryView(providerStore: providerStore, syncService: musicLibrarySyncService)
+                LibraryView(
+                    providerStore: providerStore,
+                    syncService: musicLibrarySyncService,
+                    metadataWritebackService: metadataWritebackService,
+                    sessionManager: nasSessionManager
+                )
             }
             .tabItem { Label("音乐库", systemImage: "music.note.list") }
             .tag(RootTab.library)
@@ -46,7 +52,11 @@ struct RootTabView: View {
             .tag(RootTab.downloads)
 
             NavigationStack {
-                NASSettingsView(sessionManager: nasSessionManager, syncService: musicLibrarySyncService)
+                NASSettingsView(
+                    sessionManager: nasSessionManager,
+                    syncService: musicLibrarySyncService,
+                    metadataWritebackService: metadataWritebackService
+                )
             }
             .tabItem { Label("设置", systemImage: "gearshape.fill") }
             .tag(RootTab.settings)

@@ -7,7 +7,7 @@ import Foundation
 import SQLite3
 
 enum DatabaseMigrator {
-    static let currentVersion: Int32 = 1
+    static let currentVersion: Int32 = 2
 
     static func migrate(_ manager: DatabaseManager) throws {
         try manager.write { db in
@@ -17,8 +17,11 @@ enum DatabaseMigrator {
                 try DatabaseManager.execute("BEGIN IMMEDIATE TRANSACTION", db: db)
                 if version < 1 {
                     try createVersion1(db)
-                    try DatabaseManager.execute("PRAGMA user_version = \(currentVersion)", db: db)
                 }
+                if version < 2 {
+                    try createVersion2(db)
+                }
+                try DatabaseManager.execute("PRAGMA user_version = \(currentVersion)", db: db)
                 try DatabaseManager.execute("COMMIT", db: db)
             } catch {
                 try? DatabaseManager.execute("ROLLBACK", db: db)
@@ -158,5 +161,40 @@ enum DatabaseMigrator {
             current_offset INTEGER NOT NULL DEFAULT 0
         );
         """, db: db)
+    }
+
+    private static func createVersion2(_ db: OpaquePointer) throws {
+        try addColumnIfMissing("songs", column: "remote_revision", definition: "TEXT", db: db)
+        try addColumnIfMissing("songs", column: "metadata_write_status", definition: "TEXT NOT NULL DEFAULT 'idle'", db: db)
+        try addColumnIfMissing("songs", column: "metadata_last_written_at", definition: "REAL", db: db)
+        try addColumnIfMissing("songs", column: "metadata_index_status", definition: "TEXT", db: db)
+
+        try DatabaseManager.execute("""
+        CREATE TABLE IF NOT EXISTS metadata_write_operations (
+            id TEXT PRIMARY KEY NOT NULL,
+            nas_id TEXT NOT NULL,
+            song_id TEXT NOT NULL,
+            source_id TEXT NOT NULL,
+            status TEXT NOT NULL,
+            old_revision TEXT,
+            new_revision TEXT,
+            before_metadata_json TEXT,
+            after_metadata_json TEXT,
+            backup_available INTEGER NOT NULL DEFAULT 0,
+            error_message TEXT,
+            created_at REAL NOT NULL,
+            completed_at REAL
+        );
+        """, db: db)
+        try DatabaseManager.execute("CREATE INDEX IF NOT EXISTS idx_metadata_write_operations_nas_song ON metadata_write_operations(nas_id, song_id);", db: db)
+        try DatabaseManager.execute("CREATE INDEX IF NOT EXISTS idx_metadata_write_operations_created_at ON metadata_write_operations(created_at);", db: db)
+    }
+
+    private static func addColumnIfMissing(_ table: String, column: String, definition: String, db: OpaquePointer) throws {
+        let statement = try SQLStatement("PRAGMA table_info(\(table))", db: db)
+        while try statement.step() {
+            if statement.string(1) == column { return }
+        }
+        try DatabaseManager.execute("ALTER TABLE \(table) ADD COLUMN \(column) \(definition)", db: db)
     }
 }

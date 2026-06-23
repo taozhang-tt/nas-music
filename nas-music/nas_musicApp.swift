@@ -20,6 +20,7 @@ struct nas_musicApp: App {
     @StateObject private var nasSessionManager: NASSessionManager
     @StateObject private var providerStore: MusicLibraryProviderStore
     @StateObject private var musicLibrarySyncService: MusicLibrarySyncService
+    @StateObject private var metadataWritebackService: MetadataWritebackService
     private let nowPlayingInfoManager: NowPlayingInfoManager
     private let remoteCommandManager: RemoteCommandManager
     private let providerStoreObserver: AnyCancellable?
@@ -28,6 +29,7 @@ struct nas_musicApp: App {
         let sessionManager = NASSessionManager()
         _nasSessionManager = StateObject(wrappedValue: sessionManager)
         _musicLibrarySyncService = StateObject(wrappedValue: MusicLibrarySyncService(sessionManager: sessionManager))
+        _metadataWritebackService = StateObject(wrappedValue: MetadataWritebackService(sessionManager: sessionManager))
 
         let store = MusicLibraryProviderStore(sessionManager: sessionManager)
         _providerStore = StateObject(wrappedValue: store)
@@ -56,7 +58,8 @@ struct nas_musicApp: App {
                 providerStore: providerStore,
                 downloadManager: downloadManager,
                 nasSessionManager: nasSessionManager,
-                musicLibrarySyncService: musicLibrarySyncService
+                musicLibrarySyncService: musicLibrarySyncService,
+                metadataWritebackService: metadataWritebackService
             )
             .environmentObject(playbackManager)
         }

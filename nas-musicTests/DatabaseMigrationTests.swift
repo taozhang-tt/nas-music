@@ -19,7 +19,7 @@ final class DatabaseMigrationTests: XCTestCase {
 
         let statement = try SQLStatement("PRAGMA user_version", db: db!)
         XCTAssertTrue(try statement.step())
-        XCTAssertEqual(statement.int(0), 1)
+        XCTAssertEqual(statement.int(0), 2)
     }
 
     private func makeDatabaseURL(file: StaticString = #filePath, line: UInt = #line) throws -> URL {
@@ -29,4 +29,3 @@ final class DatabaseMigrationTests: XCTestCase {
         return directory.appendingPathComponent("library.sqlite")
     }
 }
-
